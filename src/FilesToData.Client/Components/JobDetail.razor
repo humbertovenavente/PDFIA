@@ -1,0 +1,100 @@
+@using System.Text.Json
+
+<div class="job-detail">
+    <div class="job-header">
+        <div class="job-info">
+            <h2>@(Job?.FileName ?? "Sin nombre")</h2>
+            <span class="badge mode">@Job?.Mode</span>
+            <span class="badge status @Job?.Status.ToString().ToLower()">@Job?.Status</span>
+        </div>
+        <div class="job-actions">
+            <button class="btn btn-secondary" @onclick="OnRefresh">
+                <i class="fas fa-sync-alt"></i> Actualizar
+            </button>
+            <button class="btn btn-primary" @onclick="SaveChanges" disabled="@(!hasChanges)">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+        </div>
+    </div>
+    
+    <div class="job-content">
+        <div class="panel">
+            <div class="panel-header">
+                <h3>Resultados</h3>
+            </div>
+            <div class="panel-content">
+                <textarea class="results-editor" 
+                          @bind-value="resultsJson" 
+                          @bind-value:event="oninput"
+                          @onchange="OnResultsChanged"
+                          placeholder="Los resultados aparecerán aquí..."></textarea>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <h3>Vista Previa</h3>
+            </div>
+            <div class="panel-content">
+                <div class="preview-placeholder">
+                    <i class="fas fa-file"></i>
+                    <p>@(Job?.FileName ?? "Archivo")</p>
+                    <p style="font-size: 12px;">@Job?.Mode • @Job?.Status</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Job? Job { get; set; }
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<object> OnSave { get; set; }
+
+    private string resultsJson = "";
+    private bool hasChanges;
+
+    protected override void OnParametersSet()
+    {
+        if (Job?.Results != null)
+        {
+            resultsJson = JsonSerializer.Serialize(Job.Results, new JsonSerializerOptions 
+            { 
+                WriteIndented = true 
+            });
+        }
+        else if (Job?.Status == JobStatus.PROCESSING)
+        {
+            resultsJson = "Procesando...";
+        }
+        else if (Job?.Status == JobStatus.FAILED)
+        {
+            resultsJson = $"Error: {Job.ErrorMessage ?? "Error desconocido"}";
+        }
+        else
+        {
+            resultsJson = "Esperando resultados...";
+        }
+        
+        hasChanges = false;
+    }
+
+    private void OnResultsChanged(ChangeEventArgs e)
+    {
+        hasChanges = true;
+    }
+
+    private async Task SaveChanges()
+    {
+        try
+        {
+            var data = JsonSerializer.Deserialize<object>(resultsJson);
+            await OnSave.InvokeAsync(data);
+            hasChanges = false;
+        }
+        catch (JsonException)
+        {
+            // Invalid JSON - could show error
+        }
+    }
+}

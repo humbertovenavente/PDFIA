@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FilesToData v2.7 - Nuevo Trabajo</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <button id="btn-new-job" class="btn-primary full">
+                    <i class="fas fa-plus"></i>
+                    <span>Nuevo trabajo</span>
+                </button>
+            </div>
+            <div class="sidebar-content">
+                <h4 class="sidebar-title">Trabajos</h4>
+                <div id="jobs-list" class="jobs-list">
+                    <p class="empty">No hay trabajos</p>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="main-header">
+                <h1>FilesToData v2.7</h1>
+                <span id="status-indicator" class="status status-unknown">
+                    <i class="fas fa-circle"></i>
+                    <span>Backend: comprobando...</span>
+                </span>
+            </header>
+
+            <section class="main-content">
+                <section id="upload-section" class="panel panel-upload">
+                    <div class="upload-box" id="upload-box">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h2>Arrastra archivos aquí</h2>
+                        <p>o haz clic para seleccionar</p>
+
+                        <div class="mode-selector">
+                            <button id="btn-mode-document" class="mode active" data-mode="DOCUMENT">
+                                <i class="fas fa-file-invoice"></i>
+                                <span>Documento</span>
+                            </button>
+                            <button id="btn-mode-design" class="mode" data-mode="DESIGN">
+                                <i class="fas fa-tshirt"></i>
+                                <span>Diseño</span>
+                            </button>
+                        </div>
+
+                        <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" hidden />
+                    </div>
+
+                    <div class="upload-help">
+                        <p><strong>DOCUMENT:</strong> Facturas, órdenes, recibos → JSON estructurado</p>
+                        <p><strong>DESIGN:</strong> Imágenes de prendas con anotaciones → Cambios sugeridos</p>
+                    </div>
+                </section>
+
+                <section id="detail-section" class="panel panel-detail hidden">
+                    <div class="detail-header">
+                        <div>
+                            <h2 id="detail-file-name">Sin archivo</h2>
+                            <p id="detail-meta" class="meta"></p>
+                        </div>
+                        <div class="detail-actions">
+                            <button id="btn-refresh-job" class="btn-secondary">
+                                <i class="fas fa-sync-alt"></i>
+                                <span>Actualizar</span>
+                            </button>
+                            <button id="btn-save-results" class="btn-primary" disabled>
+                                <i class="fas fa-save"></i>
+                                <span>Guardar cambios</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="detail-body">
+                        <div class="detail-column">
+                            <h3>Resultados (JSON)</h3>
+                            <textarea id="results-editor" placeholder="Los resultados aparecerán aquí..."></textarea>
+                        </div>
+                        <div class="detail-column">
+                            <h3>Vista previa</h3>
+                            <div id="preview" class="preview">
+                                <p class="empty">Selecciona un trabajo para ver el detalle</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

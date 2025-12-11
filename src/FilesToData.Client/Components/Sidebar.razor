@@ -1,0 +1,87 @@
+@using FilesToData.Shared.Models
+
+<aside class="sidebar @(isCollapsed ? "collapsed" : "")">
+    <div class="sidebar-header">
+        <button class="btn-new-job" @onclick="OnNewJob">
+            <i class="fas fa-plus"></i>
+            <span>Nuevo Trabajo</span>
+        </button>
+    </div>
+    
+    <div class="job-list">
+        @if (TodayJobs.Any())
+        {
+            <div class="job-group-title">Hoy</div>
+            @foreach (var job in TodayJobs)
+            {
+                <div class="job-item @(job.Id == SelectedJobId ? "active" : "")" 
+                     @onclick="() => OnJobSelected.InvokeAsync(job.Id)">
+                    <span class="status-dot @job.Status.ToString().ToLower()"></span>
+                    <i class="fas @(job.Mode == JobMode.DOCUMENT ? "fa-file-invoice" : "fa-tshirt")"></i>
+                    <span>@(job.FileName ?? "Sin nombre")</span>
+                </div>
+            }
+        }
+        
+        @if (YesterdayJobs.Any())
+        {
+            <div class="job-group-title">Ayer</div>
+            @foreach (var job in YesterdayJobs)
+            {
+                <div class="job-item @(job.Id == SelectedJobId ? "active" : "")" 
+                     @onclick="() => OnJobSelected.InvokeAsync(job.Id)">
+                    <span class="status-dot @job.Status.ToString().ToLower()"></span>
+                    <i class="fas @(job.Mode == JobMode.DOCUMENT ? "fa-file-invoice" : "fa-tshirt")"></i>
+                    <span>@(job.FileName ?? "Sin nombre")</span>
+                </div>
+            }
+        }
+        
+        @if (OlderJobs.Any())
+        {
+            <div class="job-group-title">Anteriores</div>
+            @foreach (var job in OlderJobs)
+            {
+                <div class="job-item @(job.Id == SelectedJobId ? "active" : "")" 
+                     @onclick="() => OnJobSelected.InvokeAsync(job.Id)">
+                    <span class="status-dot @job.Status.ToString().ToLower()"></span>
+                    <i class="fas @(job.Mode == JobMode.DOCUMENT ? "fa-file-invoice" : "fa-tshirt")"></i>
+                    <span>@(job.FileName ?? "Sin nombre")</span>
+                </div>
+            }
+        }
+        
+        @if (!Jobs.Any())
+        {
+            <div style="padding: 20px; text-align: center; color: var(--text-hint);">
+                <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 12px;"></i>
+                <p>No hay trabajos</p>
+            </div>
+        }
+    </div>
+    
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <div class="user-avatar">FD</div>
+            <span>FilesToData</span>
+        </div>
+    </div>
+</aside>
+
+@code {
+    [Parameter] public List<Job> Jobs { get; set; } = new();
+    [Parameter] public Guid? SelectedJobId { get; set; }
+    [Parameter] public EventCallback OnNewJob { get; set; }
+    [Parameter] public EventCallback<Guid> OnJobSelected { get; set; }
+
+    private bool isCollapsed;
+
+    private IEnumerable<Job> TodayJobs => Jobs.Where(j => j.CreatedAt.Date == DateTime.Today);
+    private IEnumerable<Job> YesterdayJobs => Jobs.Where(j => j.CreatedAt.Date == DateTime.Today.AddDays(-1));
+    private IEnumerable<Job> OlderJobs => Jobs.Where(j => j.CreatedAt.Date < DateTime.Today.AddDays(-1));
+
+    public void Toggle()
+    {
+        isCollapsed = !isCollapsed;
+    }
+}

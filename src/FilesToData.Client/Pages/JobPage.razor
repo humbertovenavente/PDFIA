@@ -1,0 +1,79 @@
+@page "/job/{JobId:guid}"
+
+<PageTitle>FilesToData - @(job?.FileName ?? "Trabajo")</PageTitle>
+
+@if (job != null)
+{
+    <JobDetail Job="@job" 
+               OnRefresh="RefreshJob" 
+               OnSave="SaveResults" />
+}
+else if (isLoading)
+{
+    <div class="upload-section">
+        <div style="text-align: center;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: var(--accent-primary);"></i>
+            <p style="margin-top: 16px;">Cargando trabajo...</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="upload-section">
+        <div style="text-align: center;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: var(--error);"></i>
+            <p style="margin-top: 16px;">Trabajo no encontrado</p>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid JobId { get; set; }
+    
+    [Inject] private IJobService JobService { get; set; } = default!;
+
+    private Job? job;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadJob();
+    }
+
+    private async Task LoadJob()
+    {
+        isLoading = true;
+        try
+        {
+            job = await JobService.GetJobAsync(JobId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading job: {ex.Message}");
+            job = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshJob()
+    {
+        await LoadJob();
+        StateHasChanged();
+    }
+
+    private async Task SaveResults(object data)
+    {
+        try
+        {
+            await JobService.UpdateResultsAsync(JobId, data);
+            await LoadJob();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving results: {ex.Message}");
+        }
+    }
+}
