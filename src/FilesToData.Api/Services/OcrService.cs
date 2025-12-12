@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using UglyToad.PdfPig;
 using Microsoft.Extensions.Logging;
 
 namespace FilesToData.Api.Services;
@@ -19,8 +20,8 @@ public class OcrService : IOcrService
     {
         _logger = logger;
         _httpClient = httpClientFactory.CreateClient();
-        _deepseekApiKey = Environment.GetEnvironmentVariable("DEEPSEEK_OCR_API_KEY");
-        _deepseekEndpoint = Environment.GetEnvironmentVariable("DEEPSEEK_OCR_ENDPOINT") 
+        _deepseekApiKey = Environment.GetEnvironmentVariable("DEEPSEEK_OCR_API_KEY")?.Trim();
+        _deepseekEndpoint = (Environment.GetEnvironmentVariable("DEEPSEEK_OCR_ENDPOINT")?.Trim())
             ?? "https://api.deepseek.com/v1/ocr";
     }
 
@@ -52,6 +53,15 @@ public class OcrService : IOcrService
     {
         try
         {
+            var localText = TryExtractPdfTextLayer(pdfContent);
+            if (!string.IsNullOrWhiteSpace(localText))
+            {
+                _logger.LogInformation("Extracted text from PDF locally (PdfPig)");
+                return localText;
+            }
+
+            _logger.LogInformation("PDF has no extractable text layer; falling back to OCR");
+
             if (!string.IsNullOrEmpty(_deepseekApiKey))
             {
                 return await CallDeepseekOcrAsync(pdfContent, "application/pdf");
@@ -59,12 +69,41 @@ public class OcrService : IOcrService
 
             // Fallback: return placeholder (in production, use a local OCR library)
             _logger.LogWarning("No OCR API configured, returning placeholder");
-            return "[OCR extraction requires DEEPSEEK_OCR_API_KEY configuration]";
+            return "[PDF contains no extractable text layer. Configure DEEPSEEK_OCR_API_KEY (or Azure Document Intelligence) for OCR.]";
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error extracting text from PDF");
             throw;
+        }
+    }
+
+    private string? TryExtractPdfTextLayer(byte[] pdfContent)
+    {
+        try
+        {
+            using var ms = new MemoryStream(pdfContent);
+            using var document = PdfDocument.Open(ms);
+
+            var sb = new StringBuilder();
+            foreach (var page in document.GetPages())
+            {
+                sb.AppendLine($"--- PAGE {page.Number} ---");
+                var text = page.Text;
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    sb.AppendLine(text);
+                }
+                sb.AppendLine();
+            }
+
+            var result = sb.ToString().Trim();
+            return string.IsNullOrWhiteSpace(result) ? null : result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "PdfPig failed to extract text from PDF. Will use OCR fallback.");
+            return null;
         }
     }
 

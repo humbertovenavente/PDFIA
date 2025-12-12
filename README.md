@@ -2,13 +2,9 @@
 
 FilesToData is a document and design processing pipeline built on **C#/.NET 8, Azure Functions, and a lightweight static HTML/JavaScript frontend**.
 
-The project was migrated from a Python backend and a Blazor WebAssembly frontend to:
 
-- Avoid heavy WebAssembly loads and "Page Unresponsive" issues in the browser.
-- Simplify local development (no Supabase/Postgres required during dev).
-- Keep the processing model (HTTP + Queue + OCR + masking + AI) but fully in C#.
 
----
+
 
 ## Architecture Overview
 
@@ -308,8 +304,3 @@ If `CLAUDE_API_KEY` is not configured, `AiService` stays in stub mode.
 
 Despite these limitations, the full end‑to‑end pipeline is in place and working with simulated data, allowing easy future upgrades to real OCR and AI backends.
 
----
-
-## License
-
-MIT

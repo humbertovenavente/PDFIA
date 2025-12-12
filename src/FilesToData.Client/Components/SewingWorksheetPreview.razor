@@ -1,0 +1,907 @@
+@using FilesToData.Shared.Models
+
+<div class="sw-page">
+    <div class="sw-page-title">Hoja @PageNumber</div>
+
+    <div class="sw-sheet">
+        <!-- ========== 0. ENCABEZADO GENERAL ========== -->
+        <div class="sw-header-block">
+            <div class="sw-main-title">
+                ORDEN DE TRABAJO DE COSTURA / SEWING WORKSHEET / 봉제 작업지시서
+            </div>
+            <div class="sw-header-row">
+                <div class="sw-date-revised">
+                    <span class="sw-label-cell">FECHA REVISED</span>
+                    <span class="sw-value-cell">@Model.Header.RevisedDate</span>
+                </div>
+                <table class="sw-signatures-table">
+                    <thead>
+                        <tr>
+                            <th>담당</th>
+                            <th>대리</th>
+                            <th>차장</th>
+                            <th>부장</th>
+                            <th>상무</th>
+                            <th>부사장</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>@Model.Header.Signatures.Damdang</td>
+                            <td>@Model.Header.Signatures.Daeri</td>
+                            <td>@Model.Header.Signatures.Chajang</td>
+                            <td>@Model.Header.Signatures.Bujang</td>
+                            <td>@Model.Header.Signatures.Sangmu</td>
+                            <td>@Model.Header.Signatures.Busajang</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========== 1. BLOQUE CONTACTO Y PLANTA ========== -->
+        <table class="sw-info-table">
+            <tbody>
+                <tr>
+                    <td class="sw-label-cell">CONTACTO / CONTACT / 담당자</td>
+                    <td class="sw-value-cell">@Model.Header.Contact</td>
+                </tr>
+                <tr>
+                    <td class="sw-label-cell">SOLICITADO POR</td>
+                    <td class="sw-value-cell">
+                        <div>@Model.Header.RequestedBy</div>
+                        <div class="sw-address">@Model.Header.RequestedByAddress</div>
+                        <div class="sw-phone">@Model.Header.RequestedByPhone</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="sw-label-cell">PLANTA DE TRABAJO</td>
+                    <td class="sw-value-cell">
+                        <div>@Model.Header.WorkPlant</div>
+                        <div class="sw-address">@Model.Header.WorkPlantAddress</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ========== TABLA 1: INFO. DEL ORDEN ========== -->
+        <div class="sw-section-header">1. INFO. DEL ORDEN / ORDER INFO / 오더 정보</div>
+        <div class="sw-order-container">
+            <table class="sw-info-table">
+                <tbody>
+                    <tr>
+                        <td class="sw-label-cell">#FILE</td>
+                        <td class="sw-value-cell">@Model.OrderInfo.File</td>
+                    </tr>
+                    <tr>
+                        <td class="sw-label-cell">CLIENTE / BUYER / 바이어</td>
+                        <td class="sw-value-cell">@Model.OrderInfo.Buyer</td>
+                    </tr>
+                    <tr>
+                        <td class="sw-label-cell">STYLE # / # ESTILO</td>
+                        <td class="sw-value-cell">@Model.OrderInfo.Style</td>
+                    </tr>
+                    <tr>
+                        <td class="sw-label-cell">PRODUCTO / PRODUCT / 제품</td>
+                        <td class="sw-value-cell">@Model.OrderInfo.Product</td>
+                    </tr>
+                    <tr>
+                        <td class="sw-label-cell">TEMPORADA / SEASON</td>
+                        <td class="sw-value-cell">@Model.OrderInfo.Season</td>
+                    </tr>
+                    <tr>
+                        <td class="sw-label-cell">CANTIDAD / QTY / 수량</td>
+                        <td class="sw-value-cell">@FmtNumber(Model.OrderInfo.Qty)</td>
+                    </tr>
+                    <tr>
+                        <td class="sw-label-cell">ENTREGA / SHIPDATE / 납기</td>
+                        <td class="sw-value-cell">@Model.OrderInfo.ShipDate</td>
+                    </tr>
+                    <tr>
+                        <td class="sw-label-cell">COSTO / CM / 공임 (EX FACT)</td>
+                        <td class="sw-value-cell">@FmtCurrency(Model.OrderInfo.CmCost)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="sw-order-summary">
+                <div class="sw-doc-date">@Model.Header.DocumentDate</div>
+                <div class="sw-total-usd">@FmtCurrency(Model.OrderInfo.TotalUsd) USD</div>
+            </div>
+        </div>
+
+        <!-- ========== TABLA 2: INFO. DE TELA ========== -->
+        <div class="sw-section-header">2. INFO. DE TELA / FABRIC INFO / 원단 정보</div>
+        <table class="sw-info-table">
+            <tbody>
+                <tr>
+                    <td class="sw-label-cell">HILAZA / YARN / 사종</td>
+                    <td class="sw-value-cell">@Model.FabricInfo.Yarn</td>
+                </tr>
+                <tr>
+                    <td class="sw-label-cell">TELA 1 / FABRIC / 원단</td>
+                    <td class="sw-value-cell">@Model.FabricInfo.Fabric</td>
+                </tr>
+                <tr>
+                    <td class="sw-label-cell">ANCHO / WIDTH / 폭</td>
+                    <td class="sw-value-cell">@Model.FabricInfo.Width</td>
+                </tr>
+                <tr>
+                    <td class="sw-label-cell">PESO / WEIGHT / 중량</td>
+                    <td class="sw-value-cell">@Model.FabricInfo.Weight</td>
+                </tr>
+                <tr>
+                    <td class="sw-label-cell">TELA 2 / FABRIC2 / 원단2</td>
+                    <td class="sw-value-cell">@Model.FabricInfo.Fabric2</td>
+                </tr>
+                <tr>
+                    <td class="sw-label-cell">ANCHO / WIDTH / 폭 (TELA 2)</td>
+                    <td class="sw-value-cell">@Model.FabricInfo.Width2</td>
+                </tr>
+                <tr>
+                    <td class="sw-label-cell">TOTAL CONSUMO / YIELD / 요척</td>
+                    <td class="sw-value-cell">@Model.FabricInfo.YieldTotal @Model.FabricInfo.LossComment</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ========== SECCIÓN 3: PROCESO DEL ORDEN ========== -->
+        <div class="sw-section-header">3. PROCESO DEL ORDEN / ORDER PROCEDURE / 오더 공정 순서</div>
+        <div class="sw-process-flow">
+            @if (!string.IsNullOrWhiteSpace(Model.OrderProcedure))
+            {
+                <span class="sw-process-text">@Model.OrderProcedure</span>
+            }
+            else
+            {
+                <span class="sw-process-text">CORTE - COSTURA - EMPAQUE</span>
+            }
+        </div>
+
+        <!-- ========== TABLA 4: CANTIDAD POR ESTILO, COLOR & PO ========== -->
+        <div class="sw-section-header">4. CANTIDAD POR ESTILO, COLOR & PO / QTY BY STYLE, COLOR & PO</div>
+        @if (Model.QuantityLines.Count == 0)
+        {
+            <div class="sw-empty">Sin datos de cantidad</div>
+        }
+        else
+        {
+            <div class="sw-table-wrap">
+                <table class="sw-qty-table">
+                    <thead>
+                        <tr class="sw-size-header">
+                            <th colspan="5"></th>
+                            <th colspan="8" class="sw-size-group">SIZE / TALLAS</th>
+                            <th></th>
+                        </tr>
+                        <tr>
+                            <th>S#</th>
+                            <th>PO#</th>
+                            <th>XFTY</th>
+                            <th>COLOR</th>
+                            <th>COLOR CODE</th>
+                            <th class="num">XXS<br/>(2/3)</th>
+                            <th class="num">XS<br/>(4/5)</th>
+                            <th class="num">S<br/>(6/7)</th>
+                            <th class="num">M<br/>(8/9)</th>
+                            <th class="num">L<br/>(10/11)</th>
+                            <th class="num">XL<br/>(12/13)</th>
+                            <th class="num">XXL<br/>(14/15)</th>
+                            <th class="num">XXXL<br/>(16)</th>
+                            <th class="num total-col">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var line in Model.QuantityLines)
+                        {
+                            @if (line.Type == LineType.Normal)
+                            {
+                                <tr>
+                                    <td>@line.Style</td>
+                                    <td>@line.Po</td>
+                                    <td>@line.Xfty</td>
+                                    <td>@line.ColorName</td>
+                                    <td>@line.ColorCode</td>
+                                    @SizeCells(line.Sizes)
+                                    <td class="num total-col">@FmtNumber(line.Total)</td>
+                                </tr>
+                            }
+                            else if (line.Type == LineType.Subtotal)
+                            {
+                                <tr class="sw-subtotal-row">
+                                    <td colspan="5" class="sw-subtotal-label">SUB TOTAL</td>
+                                    @SizeCells(line.Sizes)
+                                    <td class="num total-col">@FmtNumber(line.Total)</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                <tr class="sw-grandtotal-row">
+                                    <td colspan="5" class="sw-grandtotal-label">GRAND TOTAL</td>
+                                    @SizeCells(line.Sizes)
+                                    <td class="num total-col">@FmtNumber(line.Total)</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <!-- ========== INSTRUCCIONES DEL ORDEN (LISTA 1-7) ========== -->
+        @if (Model.OrderProcedureNotes.Count > 0)
+        {
+            <div class="sw-notes-section">
+                <div class="sw-notes-header">INSTRUCCIONES DEL ORDEN</div>
+                <ol class="sw-numbered-list">
+                    @foreach (var note in Model.OrderProcedureNotes)
+                    {
+                        <li>@note</li>
+                    }
+                </ol>
+            </div>
+        }
+
+        <!-- ========== SECCIÓN 6: DETALLES DE OPERACIÓN / COSTURA ========== -->
+        <div class="sw-section-header">6. DETALLES DE OPERACIÓN / SEWING DETAIL / 공정 디테일</div>
+        <div class="sw-sewing-container">
+            <div class="sw-design-column">
+                <div class="sw-design-header">DISEÑO / DESIGN / 제품 그림</div>
+                <div class="sw-design-placeholder">
+                    @if (Model.DesignImages.Count > 0)
+                    {
+                        @foreach (var img in Model.DesignImages)
+                        {
+                            <div class="sw-design-img">@img</div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="sw-design-empty">[FRONT / BACK / ETIQUETAS]</div>
+                    }
+                </div>
+            </div>
+            <div class="sw-sewing-column">
+                <div class="sw-sewing-header">COSTURA / SEWING / 공정 디테일</div>
+                @if (Model.SewingDetailNotes.Count > 0)
+                {
+                    <ol class="sw-numbered-list">
+                        @foreach (var note in Model.SewingDetailNotes)
+                        {
+                            <li>@note</li>
+                        }
+                    </ol>
+                }
+                else
+                {
+                    <div class="sw-empty">—</div>
+                }
+            </div>
+        </div>
+
+        <!-- ========== TABLA 7: ESPECIFICACIÓN DE MEDIDAS ========== -->
+        <div class="sw-section-header">7. ESPECIFICACIÓN DE MEDIDAS / MEASUREMENT SPECIFICATION / 치수 사양</div>
+        @if (Model.MeasurementRows.Count == 0)
+        {
+            <div class="sw-empty">Sin datos de medidas</div>
+        }
+        else
+        {
+            <div class="sw-table-wrap">
+                <table class="sw-measure-table">
+                    <thead>
+                        <tr>
+                            <th class="measure-name">PUNTOS DE MEDIDA</th>
+                            <th class="measure-tol">TOL (-/+)</th>
+                            <th class="num">XXS<br/>(2/3)</th>
+                            <th class="num">XS<br/>(4/5)</th>
+                            <th class="num">S<br/>(6/7)</th>
+                            <th class="num">M<br/>(8/9)</th>
+                            <th class="num">L<br/>(10/11)</th>
+                            <th class="num">XL<br/>(12/13)</th>
+                            <th class="num">XXL<br/>(14/15)</th>
+                            <th class="num">XXXL<br/>(16)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.MeasurementRows)
+                        {
+                            <tr>
+                                <td class="measure-name">@row.Name</td>
+                                <td class="measure-tol">@row.Tolerance</td>
+                                <td class="num">@row.Xxs_2_3</td>
+                                <td class="num">@row.Xs_4_5</td>
+                                <td class="num">@row.S_6_7</td>
+                                <td class="num">@row.M_8_9</td>
+                                <td class="num">@row.L_10_11</td>
+                                <td class="num">@row.Xl_12_13</td>
+                                <td class="num">@row.Xxl_14_15</td>
+                                <td class="num">@row.Xxxl_16</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <!-- ========== TABLA 8: ETIQUETAS Y ACABADO ========== -->
+        <div class="sw-section-header">8. ETIQUETAS Y ACABADO / LABELS & PACKING / 라벨 & 완성</div>
+        <div class="sw-labels-container">
+            <div class="sw-labels-column">
+                <div class="sw-labels-header">ETIQUETAS / LABELS / 라벨</div>
+                <table class="sw-info-table compact">
+                    <tbody>
+                        <tr>
+                            <td class="sw-label-cell">TAMAÑO DE FOLDING</td>
+                            <td class="sw-value-cell">@Model.LabelsInfo.FoldingSize</td>
+                        </tr>
+                        <tr>
+                            <td class="sw-label-cell">HANGTAG</td>
+                            <td class="sw-value-cell">@Model.LabelsInfo.Hangtag</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="sw-packing-column">
+                <div class="sw-packing-header">ACABADO / PACKING / 완성</div>
+                <table class="sw-info-table compact">
+                    <tbody>
+                        <tr>
+                            <td class="sw-label-cell">PIEZAS POR CAJA</td>
+                            <td class="sw-value-cell">@Model.LabelsInfo.PiecesPerBox</td>
+                        </tr>
+                    </tbody>
+                </table>
+                @if (Model.LabelsInfo.AdditionalNotes.Count > 0)
+                {
+                    <ul class="sw-packing-notes">
+                        @foreach (var note in Model.LabelsInfo.AdditionalNotes)
+                        {
+                            <li>@note</li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <!-- ========== NOTAS ADICIONALES ========== -->
+        @if (Model.TrimPackingNotes.Count > 0)
+        {
+            <div class="sw-notes-section">
+                <div class="sw-notes-header">NOTAS ADICIONALES / ADDITIONAL NOTES</div>
+                <ul class="sw-bullet-list">
+                    @foreach (var note in Model.TrimPackingNotes)
+                    {
+                        <li>@note</li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(RawText))
+    {
+        <details class="sw-raw">
+            <summary>Texto extraído (hoja @PageNumber)</summary>
+            <pre>@RawText</pre>
+        </details>
+    }
+</div>
+
+<style>
+    .sw-page {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 12px;
+        color: #333;
+        background: #fff;
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+
+    .sw-page-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1a56db;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #1a56db;
+    }
+
+    .sw-sheet {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 16px;
+        background: #fafafa;
+    }
+
+    /* Header Block */
+    .sw-header-block {
+        margin-bottom: 16px;
+    }
+
+    .sw-main-title {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        color: white;
+        font-size: 16px;
+        font-weight: 700;
+        text-align: center;
+        padding: 12px 16px;
+        border-radius: 6px 6px 0 0;
+        letter-spacing: 0.5px;
+    }
+
+    .sw-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        background: #e0f2fe;
+        padding: 12px;
+        border: 1px solid #93c5fd;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+    }
+
+    .sw-date-revised {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .sw-signatures-table {
+        border-collapse: collapse;
+        font-size: 11px;
+    }
+
+    .sw-signatures-table th,
+    .sw-signatures-table td {
+        border: 1px solid #93c5fd;
+        padding: 6px 12px;
+        text-align: center;
+        min-width: 50px;
+    }
+
+    .sw-signatures-table th {
+        background: #bfdbfe;
+        font-weight: 600;
+    }
+
+    .sw-signatures-table td {
+        background: white;
+        min-height: 30px;
+    }
+
+    /* Info Tables */
+    .sw-info-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 16px;
+    }
+
+    .sw-info-table.compact {
+        margin-bottom: 8px;
+    }
+
+    .sw-info-table td {
+        border: 1px solid #d1d5db;
+        padding: 8px 12px;
+        vertical-align: top;
+    }
+
+    .sw-label-cell {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        font-weight: 600;
+        color: #1e40af;
+        width: 35%;
+        font-size: 11px;
+    }
+
+    .sw-value-cell {
+        background: white;
+        color: #1f2937;
+    }
+
+    .sw-address, .sw-phone {
+        font-size: 11px;
+        color: #6b7280;
+        margin-top: 2px;
+    }
+
+    /* Section Headers */
+    .sw-section-header {
+        background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 10px 14px;
+        border-radius: 6px;
+        margin: 16px 0 12px 0;
+    }
+
+    /* Order Container */
+    .sw-order-container {
+        display: flex;
+        gap: 16px;
+    }
+
+    .sw-order-container .sw-info-table {
+        flex: 1;
+    }
+
+    .sw-order-summary {
+        background: linear-gradient(135deg, #065f46 0%, #059669 100%);
+        color: white;
+        padding: 16px;
+        border-radius: 8px;
+        text-align: center;
+        min-width: 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .sw-doc-date {
+        font-size: 12px;
+        opacity: 0.9;
+        margin-bottom: 8px;
+    }
+
+    .sw-total-usd {
+        font-size: 20px;
+        font-weight: 700;
+    }
+
+    /* Process Flow */
+    .sw-process-flow {
+        background: #fef3c7;
+        border: 2px dashed #f59e0b;
+        border-radius: 6px;
+        padding: 12px 16px;
+        text-align: center;
+        margin-bottom: 16px;
+    }
+
+    .sw-process-text {
+        font-size: 14px;
+        font-weight: 600;
+        color: #92400e;
+        letter-spacing: 2px;
+    }
+
+    /* Quantity Table */
+    .sw-table-wrap {
+        overflow-x: auto;
+        margin-bottom: 16px;
+    }
+
+    .sw-qty-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+    }
+
+    .sw-qty-table th,
+    .sw-qty-table td {
+        border: 1px solid #d1d5db;
+        padding: 6px 8px;
+    }
+
+    .sw-qty-table thead tr:first-child th {
+        background: #1e40af;
+        color: white;
+        font-weight: 600;
+    }
+
+    .sw-qty-table thead tr:last-child th {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+        font-weight: 600;
+    }
+
+    .sw-qty-table tbody td {
+        background: white;
+    }
+
+    .sw-qty-table .num {
+        text-align: center;
+    }
+
+    .sw-qty-table .total-col {
+        background: #fef3c7 !important;
+        font-weight: 600;
+    }
+
+    .sw-size-group {
+        text-align: center;
+    }
+
+    .sw-subtotal-row {
+        background: #e0f2fe !important;
+    }
+
+    .sw-subtotal-row td {
+        background: #e0f2fe !important;
+        font-weight: 600;
+    }
+
+    .sw-subtotal-label {
+        text-align: right;
+        padding-right: 16px !important;
+        color: #1e40af;
+    }
+
+    .sw-grandtotal-row {
+        background: #1e40af !important;
+    }
+
+    .sw-grandtotal-row td {
+        background: #1e40af !important;
+        color: white !important;
+        font-weight: 700;
+    }
+
+    .sw-grandtotal-label {
+        text-align: right;
+        padding-right: 16px !important;
+    }
+
+    /* Notes Section */
+    .sw-notes-section {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 16px;
+    }
+
+    .sw-notes-header {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 12px;
+    }
+
+    .sw-numbered-list {
+        margin: 0;
+        padding-left: 24px;
+    }
+
+    .sw-numbered-list li {
+        margin-bottom: 6px;
+        line-height: 1.4;
+    }
+
+    .sw-bullet-list {
+        margin: 0;
+        padding-left: 20px;
+        list-style-type: disc;
+    }
+
+    .sw-bullet-list li {
+        margin-bottom: 4px;
+    }
+
+    /* Sewing Container */
+    .sw-sewing-container {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .sw-design-column {
+        flex: 1;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .sw-design-header,
+    .sw-sewing-header {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+        font-weight: 600;
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+
+    .sw-design-placeholder {
+        background: white;
+        padding: 16px;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sw-design-empty {
+        color: #9ca3af;
+        font-style: italic;
+    }
+
+    .sw-sewing-column {
+        flex: 1;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .sw-sewing-column .sw-numbered-list {
+        padding: 12px 12px 12px 32px;
+        background: white;
+    }
+
+    /* Measurement Table */
+    .sw-measure-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10px;
+    }
+
+    .sw-measure-table th,
+    .sw-measure-table td {
+        border: 1px solid #d1d5db;
+        padding: 5px 6px;
+    }
+
+    .sw-measure-table thead th {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+    }
+
+    .sw-measure-table tbody tr:nth-child(even) {
+        background: #f9fafb;
+    }
+
+    .sw-measure-table tbody tr:nth-child(odd) {
+        background: white;
+    }
+
+    .sw-measure-table .measure-name {
+        text-align: left;
+        min-width: 200px;
+    }
+
+    .sw-measure-table .measure-tol {
+        text-align: center;
+        width: 60px;
+    }
+
+    .sw-measure-table .num {
+        text-align: center;
+        width: 55px;
+    }
+
+    /* Labels Container */
+    .sw-labels-container {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .sw-labels-column,
+    .sw-packing-column {
+        flex: 1;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .sw-labels-header,
+    .sw-packing-header {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+        font-weight: 600;
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+
+    .sw-labels-column .sw-info-table,
+    .sw-packing-column .sw-info-table {
+        margin: 0;
+    }
+
+    .sw-packing-notes {
+        margin: 8px 12px;
+        padding-left: 16px;
+        font-size: 11px;
+    }
+
+    /* Empty State */
+    .sw-empty {
+        color: #9ca3af;
+        font-style: italic;
+        padding: 12px;
+        text-align: center;
+    }
+
+    /* Raw Text */
+    .sw-raw {
+        margin-top: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .sw-raw summary {
+        background: #f3f4f6;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 12px;
+    }
+
+    .sw-raw pre {
+        margin: 0;
+        padding: 12px;
+        background: #1f2937;
+        color: #e5e7eb;
+        font-size: 11px;
+        overflow-x: auto;
+        max-height: 300px;
+    }
+</style>
+
+@code {
+    [Parameter] public SewingWorksheetModel Model { get; set; } = new();
+    [Parameter] public int PageNumber { get; set; }
+    [Parameter] public string? RawText { get; set; }
+
+    private RenderFragment SizeCells(SizeBreakdown sizes) => builder =>
+    {
+        builder.OpenElement(0, "td");
+        builder.AddAttribute(1, "class", "num");
+        builder.AddContent(2, FmtNumber(sizes.Xxs_2_3));
+        builder.CloseElement();
+
+        builder.OpenElement(3, "td");
+        builder.AddAttribute(4, "class", "num");
+        builder.AddContent(5, FmtNumber(sizes.Xs_4_5));
+        builder.CloseElement();
+
+        builder.OpenElement(6, "td");
+        builder.AddAttribute(7, "class", "num");
+        builder.AddContent(8, FmtNumber(sizes.S_6_7));
+        builder.CloseElement();
+
+        builder.OpenElement(9, "td");
+        builder.AddAttribute(10, "class", "num");
+        builder.AddContent(11, FmtNumber(sizes.M_8_9));
+        builder.CloseElement();
+
+        builder.OpenElement(12, "td");
+        builder.AddAttribute(13, "class", "num");
+        builder.AddContent(14, FmtNumber(sizes.L_10_11));
+        builder.CloseElement();
+
+        builder.OpenElement(15, "td");
+        builder.AddAttribute(16, "class", "num");
+        builder.AddContent(17, FmtNumber(sizes.Xl_12_13));
+        builder.CloseElement();
+
+        builder.OpenElement(18, "td");
+        builder.AddAttribute(19, "class", "num");
+        builder.AddContent(20, FmtNumber(sizes.Xxl_14_15));
+        builder.CloseElement();
+
+        builder.OpenElement(21, "td");
+        builder.AddAttribute(22, "class", "num");
+        builder.AddContent(23, FmtNumber(sizes.Xxxl_16));
+        builder.CloseElement();
+    };
+
+    private string FmtNumber(object? value)
+    {
+        if (value == null) return "";
+        if (value is int i) return i.ToString("N0");
+        return value.ToString() ?? "";
+    }
+
+    private string FmtCurrency(object? value)
+    {
+        if (value == null) return "";
+        if (value is decimal d) return d.ToString("C2");
+        return value.ToString() ?? "";
+    }
+}

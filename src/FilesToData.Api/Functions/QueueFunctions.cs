@@ -109,7 +109,7 @@ public class QueueFunctions
                 await _supabase.UpdateJobStatusAsync(jobId, JobStatus.FAILED, ex.Message);
             }
 
-            throw;
+            return;
         }
     }
 
@@ -168,7 +168,7 @@ public class QueueFunctions
                 await _supabase.UpdateJobStatusAsync(jobId, JobStatus.FAILED, ex.Message);
             }
 
-            throw;
+            return;
         }
     }
 

@@ -277,32 +277,101 @@ public class JobFunctions
         if (boundaryIndex < 0) return (null, null);
         
         var boundary = contentType.Substring(boundaryIndex + 9).Trim('"');
-        
-        // Parse multipart content (simplified)
-        var content = System.Text.Encoding.UTF8.GetString(body);
-        var parts = content.Split(new[] { "--" + boundary }, StringSplitOptions.RemoveEmptyEntries);
 
-        foreach (var part in parts)
+        var boundaryBytes = System.Text.Encoding.UTF8.GetBytes("--" + boundary);
+        var headerSeparatorBytes = System.Text.Encoding.UTF8.GetBytes("\r\n\r\n");
+
+        var idx = 0;
+        while (idx >= 0 && idx < body.Length)
         {
-            if (part.Contains("filename="))
+            var start = IndexOf(body, boundaryBytes, idx);
+            if (start < 0) break;
+
+            start += boundaryBytes.Length;
+
+            if (start + 1 < body.Length && body[start] == (byte)'-' && body[start + 1] == (byte)'-')
+                break;
+
+            if (start + 1 < body.Length && body[start] == (byte)'\r' && body[start + 1] == (byte)'\n')
+                start += 2;
+
+            var next = IndexOf(body, boundaryBytes, start);
+            if (next < 0) break;
+
+            var partLength = next - start;
+            if (partLength <= 0)
             {
-                var filenameMatch = System.Text.RegularExpressions.Regex.Match(part, @"filename=""([^""]+)""");
-                if (filenameMatch.Success)
-                {
-                    var filename = filenameMatch.Groups[1].Value;
-                    
-                    // Find content start (after double newline)
-                    var contentStart = part.IndexOf("\r\n\r\n");
-                    if (contentStart > 0)
-                    {
-                        var fileContent = part.Substring(contentStart + 4);
-                        fileContent = fileContent.TrimEnd('\r', '\n', '-');
-                        return (System.Text.Encoding.UTF8.GetBytes(fileContent), filename);
-                    }
-                }
+                idx = next;
+                continue;
             }
+
+            var part = new byte[partLength];
+            Buffer.BlockCopy(body, start, part, 0, partLength);
+
+            var headerEnd = IndexOf(part, headerSeparatorBytes, 0);
+            if (headerEnd < 0)
+            {
+                idx = next;
+                continue;
+            }
+
+            var headersText = System.Text.Encoding.UTF8.GetString(part, 0, headerEnd);
+            if (!headersText.Contains("filename=", StringComparison.OrdinalIgnoreCase))
+            {
+                idx = next;
+                continue;
+            }
+
+            var filenameMatch = System.Text.RegularExpressions.Regex.Match(headersText, @"filename=""([^""]+)""");
+            if (!filenameMatch.Success)
+            {
+                idx = next;
+                continue;
+            }
+
+            var filename = filenameMatch.Groups[1].Value;
+
+            var contentStart = headerEnd + headerSeparatorBytes.Length;
+            var contentEnd = part.Length;
+
+            if (contentEnd >= 2 && part[contentEnd - 2] == (byte)'\r' && part[contentEnd - 1] == (byte)'\n')
+                contentEnd -= 2;
+
+            if (contentEnd < contentStart)
+            {
+                idx = next;
+                continue;
+            }
+
+            var fileBytes = new byte[contentEnd - contentStart];
+            Buffer.BlockCopy(part, contentStart, fileBytes, 0, fileBytes.Length);
+            return (fileBytes, filename);
         }
 
         return (null, null);
+    }
+
+    private static int IndexOf(byte[] buffer, byte[] pattern, int startIndex)
+    {
+        if (pattern.Length == 0) return -1;
+        if (startIndex < 0) startIndex = 0;
+        if (startIndex >= buffer.Length) return -1;
+
+        for (var i = startIndex; i <= buffer.Length - pattern.Length; i++)
+        {
+            var match = true;
+            for (var j = 0; j < pattern.Length; j++)
+            {
+                if (buffer[i + j] != pattern[j])
+                {
+                    match = false;
+                    break;
+                }
+            }
+
+            if (match) return i;
+        }
+
+        return -1;
     }
 }
