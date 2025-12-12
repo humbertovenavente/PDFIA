@@ -18,6 +18,17 @@ obj/
 # Azure Functions
 local.settings.json
 
+# Azurite (local emulator data)
+__blobstorage__/
+__queuestorage__/
+__azurite_db_blob__.json
+__azurite_db_blob_extent__.json
+__azurite_db_queue__.json
+__azurite_db_queue_extent__.json
+__azurite_db_table__.json
+__azurite_db_table_extent__.json
+AzuriteConfig
+
 # Build
 publish/
 dist/
@@ -30,6 +41,15 @@ logs/
 .env
 .env.local
 appsettings.Development.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.python_packages/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # OS
 .DS_Store

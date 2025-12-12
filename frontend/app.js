@@ -383,6 +383,173 @@ function renderItemsTable(items) {
   `;
 }
 
+function renderProductFactura(d) {
+  const ov = d.product_overview || {};
+  const toc = Array.isArray(d.table_of_contents) ? d.table_of_contents : [];
+  const bomMaterials = Array.isArray(d.bom_product_materials) ? d.bom_product_materials : [];
+  const bomImpressions = Array.isArray(d.bom_product_impressions_wide) ? d.bom_product_impressions_wide : [];
+  const measPlus = Array.isArray(d.measurements_plus_wide) ? d.measurements_plus_wide : [];
+  const measRegular = Array.isArray(d.measurements_regular_wide) ? d.measurements_regular_wide : [];
+  const construction = Array.isArray(d.product_details_construction) ? d.product_details_construction : [];
+
+  const overviewHtml = `
+    <div class="section-title">Product Overview</div>
+    <div class="grid-2">
+      <div class="kv">
+        ${kvRow('Product Name', ov.product_name)}
+        ${kvRow('Product ID', ov.product_id)}
+        ${kvRow('Status', ov.status)}
+        ${kvRow('Brand', ov.brand)}
+        ${kvRow('Department', ov.department)}
+        ${kvRow('Division', ov.division)}
+        ${kvRow('Class', ov.class)}
+      </div>
+      <div class="kv">
+        ${kvRow('Primary Material', ov.primary_material)}
+        ${kvRow('Secondary Material', ov.secondary_material)}
+        ${kvRow('Vendor Style #', ov.vendor_style_number)}
+        ${kvRow('Workspace ID', ov.workspace_id)}
+        ${kvRow('Design Cycle', ov.design_cycle)}
+        ${kvRow('System Tags', ov.system_tags)}
+        ${kvRow('Tags', ov.tags)}
+      </div>
+    </div>
+  `;
+
+  const tocHtml = toc.length ? `
+    <div class="section-title">Table of Contents</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Section</th><th>Page Title</th></tr></thead>
+        <tbody>${toc.map(r => `<tr><td>${escapeHtml(fmt(r.section))}</td><td>${escapeHtml(fmt(r.page_title))}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>
+  ` : '';
+
+  const bomMatHtml = bomMaterials.length ? `
+    <div class="section-title">Bill of Materials - Product Materials</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr>
+          <th>#</th><th>Section</th><th>Use</th><th>Type</th><th>Material Asset</th><th>Details</th><th>Supplier</th><th>BOM Code</th><th>Status</th>
+        </tr></thead>
+        <tbody>${bomMaterials.map(r => `<tr>
+          <td>${escapeHtml(fmt(r.row))}</td>
+          <td>${escapeHtml(fmt(r.section))}</td>
+          <td>${escapeHtml(fmt(r.use))}</td>
+          <td>${escapeHtml(fmt(r.material_type))}</td>
+          <td>${escapeHtml(fmt(r.connected_material_asset))}</td>
+          <td>${escapeHtml(fmt(r.additional_material_details))}</td>
+          <td>${escapeHtml(fmt(r.supplier))}</td>
+          <td>${escapeHtml(fmt(r.bom_code))}</td>
+          <td>${escapeHtml(fmt(r.bom_status))}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  ` : '';
+
+  const bomImpHtml = bomImpressions.length ? `
+    <div class="section-title">Bill of Materials - Product Impressions</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr>
+          <th>#</th><th>Use</th><th>Material Asset</th><th>Details</th><th>Heather Gray</th><th>Navy</th>
+        </tr></thead>
+        <tbody>${bomImpressions.map(r => `<tr>
+          <td>${escapeHtml(fmt(r.row))}</td>
+          <td>${escapeHtml(fmt(r.use))}</td>
+          <td>${escapeHtml(fmt(r.connected_material_asset))}</td>
+          <td>${escapeHtml(fmt(r.additional_material_details))}</td>
+          <td>${escapeHtml(fmt(r.heather_gray))}</td>
+          <td>${escapeHtml(fmt(r.navy))}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  ` : '';
+
+  const measPlusHtml = measPlus.length ? `
+    <div class="section-title">Measurements - Plus Sizes</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr>
+          <th>Section</th><th>POM Name</th><th>POM ID</th><th>UOM</th><th>Tol+</th><th>Tol-</th><th>XXL</th><th>1X</th><th>2X</th><th>3X</th><th>4X</th>
+        </tr></thead>
+        <tbody>${measPlus.map(r => `<tr>
+          <td>${escapeHtml(fmt(r.section))}</td>
+          <td>${escapeHtml(fmt(r.pom_name || r.point_of_measure_name))}</td>
+          <td>${escapeHtml(fmt(r.pom_id))}</td>
+          <td>${escapeHtml(fmt(r.uom))}</td>
+          <td class="num">${escapeHtml(fmt(r.tolerance_plus))}</td>
+          <td class="num">${escapeHtml(fmt(r.tolerance_minus))}</td>
+          <td class="num">${escapeHtml(fmt(r.xx_large))}</td>
+          <td class="num">${escapeHtml(fmt(r['1x']))}</td>
+          <td class="num">${escapeHtml(fmt(r['2x']))}</td>
+          <td class="num">${escapeHtml(fmt(r['3x']))}</td>
+          <td class="num">${escapeHtml(fmt(r['4x']))}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  ` : '';
+
+  const measRegHtml = measRegular.length ? `
+    <div class="section-title">Measurements - Regular Sizes</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr>
+          <th>Section</th><th>POM Name</th><th>POM ID</th><th>UOM</th><th>Tol+</th><th>Tol-</th><th>XXS</th><th>XS</th><th>S</th><th>M</th><th>L</th><th>XL</th>
+        </tr></thead>
+        <tbody>${measRegular.map(r => `<tr>
+          <td>${escapeHtml(fmt(r.section))}</td>
+          <td>${escapeHtml(fmt(r.pom_name || r.point_of_measure_name))}</td>
+          <td>${escapeHtml(fmt(r.pom_id))}</td>
+          <td>${escapeHtml(fmt(r.uom))}</td>
+          <td class="num">${escapeHtml(fmt(r.tolerance_plus))}</td>
+          <td class="num">${escapeHtml(fmt(r.tolerance_minus))}</td>
+          <td class="num">${escapeHtml(fmt(r.xx_small))}</td>
+          <td class="num">${escapeHtml(fmt(r.x_small))}</td>
+          <td class="num">${escapeHtml(fmt(r.small))}</td>
+          <td class="num">${escapeHtml(fmt(r.medium))}</td>
+          <td class="num">${escapeHtml(fmt(r.large))}</td>
+          <td class="num">${escapeHtml(fmt(r.x_large))}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  ` : '';
+
+  const constHtml = construction.length ? `
+    <div class="section-title">Product Details - Construction</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr>
+          <th>Section</th><th>Category</th><th>Subcategory</th><th>Detail</th><th>Instructions</th><th>ID</th><th>Status</th>
+        </tr></thead>
+        <tbody>${construction.map(r => `<tr>
+          <td>${escapeHtml(fmt(r.section))}</td>
+          <td>${escapeHtml(fmt(r.category))}</td>
+          <td>${escapeHtml(fmt(r.subcategory))}</td>
+          <td>${escapeHtml(fmt(r.detail))}</td>
+          <td>${escapeHtml(fmt(r.special_instructions))}</td>
+          <td>${escapeHtml(fmt(r.product_details_id))}</td>
+          <td>${escapeHtml(fmt(r.status))}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  ` : '';
+
+  return `
+    <div class="page-card">
+      <div class="page-title">Product Specification</div>
+      ${overviewHtml}
+      ${tocHtml}
+      ${bomMatHtml}
+      ${bomImpHtml}
+      ${measPlusHtml}
+      ${measRegHtml}
+      ${constHtml}
+    </div>
+  `;
+}
+
 function renderDocumentPage(page) {
   const root = page.data || {};
   const d = root?.template_type === 'generic_document' && root?.generic_document
@@ -391,6 +558,10 @@ function renderDocumentPage(page) {
 
   if (root?.template_type === 'sewing_worksheet') {
     return renderSewingWorksheetPage(page);
+  }
+
+  if (root?.template_type === 'product_factura') {
+    return renderProductFactura(root);
   }
 
   const em = d.emisor || {};
@@ -555,6 +726,11 @@ function renderResultsPreview(mode, results) {
 
   if (mode === 'DESIGN') {
     return renderDesignResults(results);
+  }
+
+  // Direct product_factura template (not wrapped in pages)
+  if (results?.template_type === 'product_factura') {
+    return `<div class="preview-root">${renderProductFactura(results)}</div>`;
   }
 
   const pages = getDocumentPages(results);
