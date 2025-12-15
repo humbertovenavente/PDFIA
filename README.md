@@ -20,7 +20,7 @@ High‑level flow (current setup):
                     │ HTTP (fetch)
                     ▼
 ┌───────────────────────────────────────────────┐
-│      Azure Functions (.NET 8 Isolated)       │
+│      Azure Functions (.NET  10 lated)       │
 │  HTTP triggers:                              │
 │    - POST /api/jobs                          │
 │    - GET  /api/jobs                          │
@@ -36,8 +36,8 @@ High‑level flow (current setup):
           ▼                   ▼
 ┌────────────────┐   ┌──────────────────────┐
 │ In‑memory      │   │  OCR Service         │
-│ storage (stub) │   │  - Optional Deepseek │
-│ SupabaseService│   │    OCR HTTP API      │
+│ storage (stub) │   │  - PDF text layer    │
+│ SupabaseService│   │  - Image OCR (local) │
 └────────────────┘   └──────────────────────┘
           │                   ▼
           │          ┌────────────────┐
@@ -86,11 +86,9 @@ High‑level flow (current setup):
   - No real Postgres/Supabase is required in local development.
 
 - **OCR Service** (`OcrService`)
-  - Uses `HttpClient` to optionally call a **Deepseek OCR HTTP API** if `DEEPSEEK_OCR_API_KEY` is configured.
-  - Supports PDFs and common image formats.
-  - If the API key is missing or the API returns an error (e.g. 401 Unauthorized), the service:
-    - Logs a warning.
-    - Returns a placeholder string instead of throwing, so jobs still complete.
+  - Extracts PDF text layer when available.
+  - Runs local OCR for images (e.g. embedded images in PDFs) when Tesseract is configured.
+  - If OCR is not available, the service returns a placeholder string so jobs still complete.
 
 - **Masking Service** (`MaskingService`)
   - Detects and masks sensitive data using regex/heuristics:
@@ -151,7 +149,7 @@ High‑level flow (current setup):
     - Reads `{ "job_id": ... }` messages from `document-jobs` (correctly mapped via `JsonPropertyName("job_id")`).
     - Loads the job from `SupabaseService` (in memory).
     - Downloads the stored file.
-    - Runs OCR (Deepseek if configured, otherwise placeholder text).
+    - Runs OCR (PDF text layer + local image OCR when configured; otherwise placeholder text).
     - Masks sensitive data and logs masking events.
     - Calls `AiService` (stub) and then un‑masks the structured JSON.
     - Saves results and sets job status to `COMPLETED`.
@@ -262,11 +260,9 @@ Key variables used by the current setup:
 | Variable                | Description                                                  |
 |-------------------------|--------------------------------------------------------------|
 | `AzureWebJobsStorage`   | Azure Storage connection string (e.g. `UseDevelopmentStorage=true`) |
-| `DEEPSEEK_OCR_API_KEY`  | (Optional) Deepseek OCR API key for real OCR                |
-| `DEEPSEEK_OCR_ENDPOINT` | (Optional) Deepseek OCR endpoint URL                        |
 | `CLAUDE_API_KEY`        | (Planned) API key for a real AI model (e.g. Claude Opus)    |
 
-If `DEEPSEEK_OCR_API_KEY` is not set or the OCR API fails, OCR falls back to placeholder text.
+If OCR tooling is not configured, OCR falls back to placeholder text.
 If `CLAUDE_API_KEY` is not configured, `AiService` stays in stub mode.
 
 ---
