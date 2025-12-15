@@ -23,13 +23,17 @@ def _utc_now_iso() -> str:
 
 def _cors_headers() -> Dict[str, str]:
     origin = os.getenv("CORS_ALLOWED_ORIGIN") or "http://localhost:3000"
-    return {
-        "Access-Control-Allow-Origin": origin,
+    headers = {
         "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type,Authorization",
         "Access-Control-Max-Age": "86400",
-        "Vary": "Origin",
     }
+    if origin.strip() == "*":
+        headers["Access-Control-Allow-Origin"] = "*"
+    else:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Vary"] = "Origin"
+    return headers
 
 
 def _cors_preflight() -> func.HttpResponse:
@@ -263,7 +267,12 @@ def process_document_job(msg: func.QueueMessage) -> None:
             return
 
         file_bytes = supabase.download_file(job["file_path"])
-        extracted_text = ocr_service.extract_text(file_bytes, job.get("file_name") or "document.pdf")
+        file_name = job.get("file_name") or "document.pdf"
+        
+        # Extract text and images from document
+        extraction_result = ocr_service.extract_text_with_images(file_bytes, file_name)
+        extracted_text = extraction_result.get("text", "")
+        extracted_images = extraction_result.get("images_extracted", [])
 
         masked_text, masking_map = masking_service.mask_text(extracted_text)
 
@@ -279,6 +288,11 @@ def process_document_job(msg: func.QueueMessage) -> None:
 
         structured = ai_service.extract_document_data(masked_text)
         unmasked = masking_service.unmask_data(structured, masking_map)
+        
+        # Add extracted images to results
+        if extracted_images:
+            unmasked["_extracted_images"] = extracted_images
+            unmasked["_ocr_method"] = extraction_result.get("ocr_method", "unknown")
 
         supabase.upsert_results(job_id, unmasked)
         supabase.update_job_status(job_id, "COMPLETED")

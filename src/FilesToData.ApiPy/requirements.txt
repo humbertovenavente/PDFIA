@@ -2,3 +2,6 @@ azure-functions
 azure-storage-queue
 pypdf
 requests
+PyMuPDF
+pytesseract
+Pillow
