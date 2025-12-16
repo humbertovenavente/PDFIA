@@ -2740,18 +2740,21 @@ function renderJobDetail(job) {
   document.querySelectorAll('.tab-content').forEach((el) => {
     el.classList.toggle('hidden', isProcessing);
   });
-  // Keep preview panel visible as the placeholder container when processing
-  const previewTab = document.getElementById('tab-preview');
-  if (previewTab) previewTab.classList.toggle('hidden', false);
+  // Keep editor tab visible
+  const editorTab = document.getElementById('tab-editor');
+  if (editorTab) editorTab.classList.toggle('hidden', false);
   
-  if (job.results) {
-    editor.value = JSON.stringify(job.results, null, 2);
-  } else if (job.status === 'PROCESSING') {
-    editor.value = 'Processing...';
-  } else if (job.status === 'FAILED') {
-    editor.value = `Error: ${job.error_message || 'Unknown error'}`;
-  } else {
-    editor.value = 'Waiting for results...';
+  // Only set editor value if it exists (JSON tab was removed)
+  if (editor) {
+    if (job.results) {
+      editor.value = JSON.stringify(job.results, null, 2);
+    } else if (job.status === 'PROCESSING') {
+      editor.value = 'Processing...';
+    } else if (job.status === 'FAILED') {
+      editor.value = `Error: ${job.error_message || 'Unknown error'}`;
+    } else {
+      editor.value = 'Waiting for results...';
+    }
   }
 
   if (job.results) {
@@ -2760,16 +2763,22 @@ function renderJobDetail(job) {
     if (tabs) tabs.classList.remove('hidden');
     document.querySelectorAll('.tab-content').forEach((el) => el.classList.remove('hidden'));
 
-    previewEl.innerHTML = renderResultsPreview(job.mode, job.results);
-    // Attach editable listeners after rendering
-    setTimeout(() => attachEditableListeners(), 0);
+    // Only render preview if element exists (Final Preview tab was removed)
+    if (previewEl) {
+      previewEl.innerHTML = renderResultsPreview(job.mode, job.results);
+      // Attach editable listeners after rendering
+      setTimeout(() => attachEditableListeners(), 0);
+    }
   } else {
-    previewEl.innerHTML = `
-      <div class="empty-state">
-        <i class="fas fa-hourglass-half"></i>
-        <p>${escapeHtml(job.status === 'PROCESSING' ? 'Processing document...' : 'Waiting for results')}</p>
-      </div>
-    `;
+    // Only set innerHTML if element exists
+    if (previewEl) {
+      previewEl.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-hourglass-half"></i>
+          <p>${escapeHtml(job.status === 'PROCESSING' ? 'Processing document...' : 'Waiting for results')}</p>
+        </div>
+      `;
+    }
   }
 
   // Load document for PDF regions tab
@@ -2787,20 +2796,23 @@ function renderJobDetail(job) {
     loadDocumentForEditor(job);
   }
 
-  editor.oninput = () => {
-    let parsed;
-    try {
-      parsed = JSON.parse(editor.value || '{}');
-    } catch {
-      previewEl.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Invalid JSON</p></div>`;
-      return;
-    }
-    state.currentResults = parsed;
-    tableIdCounter = 0;
-    window.editableTables = {};
-    previewEl.innerHTML = renderResultsPreview(job.mode, parsed);
-    setTimeout(() => attachEditableListeners(), 0);
-  };
+  // Only attach oninput if editor exists (JSON tab was removed)
+  if (editor) {
+    editor.oninput = () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(editor.value || '{}');
+      } catch {
+        if (previewEl) previewEl.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Invalid JSON</p></div>`;
+        return;
+      }
+      state.currentResults = parsed;
+      tableIdCounter = 0;
+      window.editableTables = {};
+      if (previewEl) previewEl.innerHTML = renderResultsPreview(job.mode, parsed);
+      setTimeout(() => attachEditableListeners(), 0);
+    };
+  }
 }
 
 async function handleFileSelected(file) {

@@ -2617,6 +2617,72 @@ body {
   border-bottom: 1px solid var(--gray-200);
 }
 
+/* Annotation Tools Toolbar */
+.editor-annotation-tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--gray-100);
+  border-bottom: 1px solid var(--gray-200);
+  flex-wrap: wrap;
+}
+
+.annotation-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-annotation {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--gray-300);
+  background: white;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-600);
+  transition: all 0.15s ease;
+}
+
+.btn-annotation:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-400);
+  color: var(--gray-800);
+}
+
+.btn-annotation.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.btn-annotation.active:hover {
+  background: var(--primary-dark);
+}
+
+#annotation-color {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+#annotation-size {
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .editor-pdf-workspace {
   flex: 1;
   overflow: auto;
@@ -2634,6 +2700,13 @@ body {
 
 .editor-canvas-wrapper canvas {
   display: block;
+}
+
+#editor-annotation-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
 }
 
 #editor-overlay-canvas {
@@ -2671,6 +2744,38 @@ body {
   border-top: 1px solid var(--gray-200);
 }
 
+/* Make the "Add Selection" action more visible */
+.editor-pdf-actions #btn-editor-extract {
+  min-width: 160px;
+  font-weight: 600;
+  border-radius: 10px;
+  box-shadow: 0 6px 14px rgba(99, 102, 241, 0.18);
+  background: #1e3a8a !important;
+  border: 1px solid #1e3a8a !important;
+  color: #ffffff !important;
+}
+
+.editor-pdf-actions #btn-editor-extract:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+  background: #1e40af !important;
+  border: 1px solid #1e40af !important;
+  color: #ffffff !important;
+}
+
+.editor-pdf-actions #btn-editor-extract:not(:disabled):hover {
+  transform: translateY(-1px);
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 10px 18px rgba(29, 78, 216, 0.28);
+}
+
+.editor-pdf-actions #btn-editor-extract:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: 0 6px 14px rgba(99, 102, 241, 0.18);
+}
+
 .editor-hint {
   font-size: 12px;
   color: var(--gray-500);
@@ -2687,6 +2792,116 @@ body {
 
 .editor-content-list .empty-state {
   padding: 40px 20px;
+}
+
+.editor-content-actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--gray-200);
+  background: var(--gray-50);
+}
+
+.editor-content-actions .btn-primary,
+.editor-content-actions .btn-secondary {
+  flex: 1;
+  justify-content: center;
+}
+
+/* Final Preview Styles */
+.final-preview-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 600px;
+}
+
+.final-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.final-preview-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gray-800);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.final-preview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.final-preview-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: var(--gray-100);
+}
+
+/* PDF Preview Modal */
+#pdf-preview-modal.modal {
+  z-index: 9999;
+}
+
+#pdf-preview-modal .modal-content {
+  width: 90%;
+  max-width: 1000px;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+#pdf-preview-modal .modal-header {
+  padding: 16px 20px;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#pdf-preview-modal .modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gray-800);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#pdf-preview-modal .modal-body {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+  background: var(--gray-200);
+}
+
+#pdf-preview-modal .modal-footer {
+  padding: 16px 20px;
+  background: var(--gray-50);
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.pdf-preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
 }
 
 /* Content Block (each extracted item) */

@@ -125,27 +125,13 @@
                         </div>
                     </div>
 
-                    <div id="detail-processing" class="detail-processing hidden">
-                        <div class="spinner"></div>
-                        <div class="detail-processing-text">
-                            <h3>Processing document…</h3>
-                            <p>Please wait while we extract and structure the information.</p>
-                        </div>
-                    </div>
+                    <!-- Processing overlay removed - now using incremental editing -->
 
-                    <!-- Tab Navigation -->
+                    <!-- Tab Navigation - Only Editor tab now -->
                     <div class="detail-tabs" id="detail-tabs">
                         <button class="tab-btn active" data-tab="editor">
                             <i class="fas fa-edit"></i>
                             <span>Editor</span>
-                        </button>
-                        <button class="tab-btn" data-tab="preview">
-                            <i class="fas fa-eye"></i>
-                            <span>Final Preview</span>
-                        </button>
-                        <button class="tab-btn" data-tab="json">
-                            <i class="fas fa-code"></i>
-                            <span>JSON</span>
                         </button>
                     </div>
 
@@ -172,9 +158,52 @@
                                         <span class="page-indicator">Page <span id="editor-current-page">1</span> of <span id="editor-total-pages">1</span></span>
                                         <button class="btn-page" id="btn-editor-next-page"><i class="fas fa-chevron-right"></i></button>
                                     </div>
+                                    <!-- Annotation Tools -->
+                                    <div class="editor-annotation-tools" id="editor-annotation-tools">
+                                        <div class="annotation-tool-group">
+                                            <button class="btn-annotation active" id="btn-tool-select" title="Select Region (OCR)">
+                                                <i class="fas fa-mouse-pointer"></i>
+                                            </button>
+                                            <button class="btn-annotation" id="btn-tool-draw" title="Draw / Pencil">
+                                                <i class="fas fa-pencil-alt"></i>
+                                            </button>
+                                            <button class="btn-annotation" id="btn-tool-highlight" title="Highlight">
+                                                <i class="fas fa-highlighter"></i>
+                                            </button>
+                                            <button class="btn-annotation" id="btn-tool-strikethrough" title="Strikethrough">
+                                                <i class="fas fa-strikethrough"></i>
+                                            </button>
+                                            <button class="btn-annotation" id="btn-tool-text" title="Add Text">
+                                                <i class="fas fa-font"></i>
+                                            </button>
+                                            <button class="btn-annotation" id="btn-tool-arrow" title="Arrow">
+                                                <i class="fas fa-long-arrow-alt-right"></i>
+                                            </button>
+                                            <button class="btn-annotation" id="btn-tool-eraser" title="Eraser">
+                                                <i class="fas fa-eraser"></i>
+                                            </button>
+                                        </div>
+                                        <div class="annotation-tool-group">
+                                            <input type="color" id="annotation-color" value="#ff0000" title="Color">
+                                            <select id="annotation-size" title="Size">
+                                                <option value="2">Thin</option>
+                                                <option value="4" selected>Medium</option>
+                                                <option value="8">Thick</option>
+                                            </select>
+                                        </div>
+                                        <div class="annotation-tool-group">
+                                            <button class="btn-annotation" id="btn-undo-annotation" title="Undo">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                            <button class="btn-annotation" id="btn-clear-annotations" title="Clear All">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div class="editor-pdf-workspace">
                                         <div class="editor-canvas-wrapper" id="editor-canvas-wrapper">
                                             <canvas id="editor-pdf-canvas"></canvas>
+                                            <canvas id="editor-annotation-canvas"></canvas>
                                             <canvas id="editor-overlay-canvas"></canvas>
                                             <div class="editor-loading hidden" id="editor-loading">
                                                 <div class="spinner"></div>
@@ -204,16 +233,14 @@
                                             <p>Select regions from the PDF to extract content</p>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Final Preview Tab -->
-                        <div class="tab-content" id="tab-preview">
-                            <div id="preview" class="preview-container">
-                                <div class="empty-state">
-                                    <i class="fas fa-file-alt"></i>
-                                    <p>Select a job to view details</p>
+                                    <div class="editor-content-actions">
+                                        <button class="btn-primary" id="btn-save-changes">
+                                            <i class="fas fa-eye"></i> Preview Changes
+                                        </button>
+                                        <button class="btn-secondary" id="btn-download-pdf">
+                                            <i class="fas fa-download"></i> Download PDF
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -361,22 +388,6 @@
                             </div>
                         </div>
 
-                        <!-- JSON Tab -->
-                        <div class="tab-content" id="tab-json">
-                            <div class="json-editor-container">
-                                <div class="json-toolbar">
-                                    <button class="btn-tool" id="btn-format-json">
-                                        <i class="fas fa-indent"></i>
-                                        <span>Format</span>
-                                    </button>
-                                    <button class="btn-tool" id="btn-copy-json">
-                                        <i class="fas fa-copy"></i>
-                                        <span>Copy</span>
-                                    </button>
-                                </div>
-                                <textarea id="results-editor" placeholder="Results will appear here..."></textarea>
-                            </div>
-                        </div>
                     </div>
                 </section>
             </section>
@@ -386,9 +397,30 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
+    <!-- PDF Preview Modal -->
+    <div id="pdf-preview-modal" class="modal hidden">
+        <div class="modal-overlay" onclick="closePdfPreviewModal()"></div>
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3><i class="fas fa-file-pdf"></i> Modified Document Preview</h3>
+                <button class="btn-close" onclick="closePdfPreviewModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <iframe id="pdf-preview-iframe" class="pdf-preview-iframe"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closePdfPreviewModal()">Close</button>
+                <button class="btn-primary" onclick="downloadModifiedPdf()">
+                    <i class="fas fa-download"></i> Download PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="templateDefinitions.js"></script>
     <script src="exportExcel.js"></script>
     <script src="app.js"></script>

@@ -978,6 +978,13 @@ class OcrService:
                         azure_result = self._ocr_with_azure_di_full(cropped_bytes)
                         azure_text = azure_result.get("text", "")
                         azure_tables = azure_result.get("tables", [])
+                        # If Azure produced structured tables, return them even if plain text is empty.
+                        # This ensures the frontend can render a real table consistently.
+                        if azure_tables and (not azure_text or not str(azure_text).strip()):
+                            result["method"] = "azure_document_intelligence"
+                            result["text"] = ""
+                            result["tables"] = azure_tables
+                            return result
                         if azure_text and not azure_text.startswith("["):
                             result["method"] = "azure_document_intelligence"
                             result["text"] = azure_text.strip()
