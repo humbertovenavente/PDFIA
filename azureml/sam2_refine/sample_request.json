@@ -1,0 +1,5 @@
+{
+  "task": "segment_refine",
+  "image_base64": "<BASE64_HERE>",
+  "point": {"x": 100, "y": 100}
+}

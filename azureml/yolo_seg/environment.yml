@@ -1,0 +1,5 @@
+$schema: https://azuremlschemas.azureedge.net/latest/environment.schema.json
+name: garment-yolo-seg-env
+description: YOLOv8 segmentation environment (GPU-ready)
+image: pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+conda_file: conda.yaml

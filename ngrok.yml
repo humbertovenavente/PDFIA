@@ -3,8 +3,8 @@ authtoken: 2y0VGgZEKDSVsjkImjiNE1feiRd_38io6TPdS9To8E717e8rb
 
 tunnels:
   frontend:
-    addr: 3000
+    addr: 127.0.0.1:3000
     proto: http
   backend:
-    addr: 7071
+    addr: 127.0.0.1:7071
     proto: http

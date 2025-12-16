@@ -1,0 +1,6 @@
+{
+  "task": "segment_auto",
+  "image_base64": "<BASE64_HERE>",
+  "max_masks": 20,
+  "conf": 0.25
+}

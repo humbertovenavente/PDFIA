@@ -2,7 +2,10 @@ function getApiBase() {
   const params = new URLSearchParams(window.location.search);
   const fromQuery = (params.get('apiBase') || '').trim();
   const fromStorage = (localStorage.getItem('apiBase') || '').trim();
-  const base = (fromQuery || fromStorage || 'http://localhost:7071/api').replace(/\/+$/, '');
+  let base = (fromQuery || fromStorage || 'http://localhost:7071/api').replace(/\/+$/, '');
+  if (!/\/api$/i.test(base)) {
+    base = `${base}/api`.replace(/\/+$/, '');
+  }
   if (fromQuery) {
     localStorage.setItem('apiBase', base);
   }
@@ -187,16 +190,30 @@ function renderQuantityLinesTable(lines) {
 function renderMeasurementRowsTable(rows) {
   if (!Array.isArray(rows) || rows.length === 0) return `<div class="empty">No table</div>`;
 
+  // Support multiple key formats for sizes
   const sizeCols = [
-    { key: 'xxs_2_3', label: 'XXS (2/3)' },
-    { key: 'xs_4_5', label: 'XS (4/5)' },
-    { key: 's_6_7', label: 'S (6/7)' },
-    { key: 'm_8_9', label: 'M (8/9)' },
-    { key: 'l_10_11', label: 'L (10/11)' },
-    { key: 'xl_12_13', label: 'XL (12/13)' },
-    { key: 'xxl_14_15', label: 'XXL (14/15)' },
-    { key: 'xxxl_16', label: 'XXXL (16)' },
+    { key: 'xxs', altKeys: ['xxs_2_3', '2_3'], label: 'XXS (2/3)' },
+    { key: 'xs', altKeys: ['xs_4_5', '4_5'], label: 'XS (4/5)' },
+    { key: 's', altKeys: ['s_6_7', '6_7'], label: 'S (6/7)' },
+    { key: 'm', altKeys: ['m_8_9', '8_9'], label: 'M (8/9)' },
+    { key: 'l', altKeys: ['l_10_11', '10_11'], label: 'L (10/11)' },
+    { key: 'xl', altKeys: ['xl_12_13', '12_13'], label: 'XL (12/13)' },
+    { key: 'xxl', altKeys: ['xxl_14_15', '14_15'], label: 'XXL (14/15)' },
+    { key: 'xxxl', altKeys: ['xxxl_16', '16'], label: 'XXXL (16)' },
   ];
+
+  // Helper to get value with fallbacks
+  const getValue = (row, col) => {
+    let val = row?.[col.key];
+    if (val !== undefined && val !== null && val !== '') return val;
+    if (Array.isArray(col.altKeys)) {
+      for (const alt of col.altKeys) {
+        val = row?.[alt];
+        if (val !== undefined && val !== null && val !== '') return val;
+      }
+    }
+    return '';
+  };
 
   const thead = `
     <tr>
@@ -211,7 +228,7 @@ function renderMeasurementRowsTable(rows) {
       <tr>
         <td>${escapeHtml(fmt(r?.name) || '')}</td>
         <td class="num">${escapeHtml(fmt(r?.tolerance) || '')}</td>
-        ${sizeCols.map(s => `<td class="num">${escapeHtml(fmt(r?.[s.key]) || '')}</td>`).join('')}
+        ${sizeCols.map(s => `<td class="num">${escapeHtml(fmt(getValue(r, s)) || '')}</td>`).join('')}
       </tr>
     `;
   }).join('');
@@ -247,7 +264,7 @@ function renderSewingWorksheetPage(page) {
   const pageIdx = (page.page_number || 1) - 1;
   const basePath = `pages[${pageIdx}].data.sewing_worksheet`;
 
-  const title = 'SEWING WORKSHEET';
+  const title = 'ORDEN DE TRABAJO DE COSTURA/ SEWING WORKSHEET/ 봉제 작업지시서';
 
   const processText = sw.order_procedure;
   const cutNotes = sw.order_procedure_notes || sw.cutting_detail_notes;
@@ -255,36 +272,41 @@ function renderSewingWorksheetPage(page) {
   const qtyLines = sw.quantity_lines;
   const measRows = sw.measurement_rows;
 
-  // Editable quantity lines table
+  // Editable quantity lines table - support multiple key formats
   const qtyColumns = [
     { key: 'style', label: 'S#' },
     { key: 'po', label: 'PO#' },
     { key: 'xfty', label: 'XFTY' },
     { key: 'color_name', label: 'COLOR' },
     { key: 'color_code', label: 'COLOR CODE' },
-    { key: 'sizes.xxs_2_3', label: 'XXS (2/3)', numeric: true },
-    { key: 'sizes.xs_4_5', label: 'XS (4/5)', numeric: true },
-    { key: 'sizes.s_6_7', label: 'S (6/7)', numeric: true },
-    { key: 'sizes.m_8_9', label: 'M (8/9)', numeric: true },
-    { key: 'sizes.l_10_11', label: 'L (10/11)', numeric: true },
-    { key: 'sizes.xl_12_13', label: 'XL (12/13)', numeric: true },
-    { key: 'sizes.xxl_14_15', label: 'XXL (14/15)', numeric: true },
-    { key: 'sizes.xxxl_16', label: 'XXXL (16)', numeric: true },
+    { key: 'sizes.xxs', altKeys: ['sizes.xxs_2_3', 'sizes.2_3'], label: 'XXS (2/3)', numeric: true },
+    { key: 'sizes.xs', altKeys: ['sizes.xs_4_5', 'sizes.4_5'], label: 'XS (4/5)', numeric: true },
+    { key: 'sizes.s', altKeys: ['sizes.s_6_7', 'sizes.6_7'], label: 'S (6/7)', numeric: true },
+    { key: 'sizes.m', altKeys: ['sizes.m_8_9', 'sizes.8_9'], label: 'M (8/9)', numeric: true },
+    { key: 'sizes.l', altKeys: ['sizes.l_10_11', 'sizes.10_11'], label: 'L (10/11)', numeric: true },
+    { key: 'sizes.xl', altKeys: ['sizes.xl_12_13', 'sizes.12_13'], label: 'XL (12/13)', numeric: true },
+    { key: 'sizes.xxl', altKeys: ['sizes.xxl_14_15', 'sizes.14_15'], label: 'XXL (14/15)', numeric: true },
+    { key: 'sizes.xxxl', altKeys: ['sizes.xxxl_16', 'sizes.16'], label: 'XXXL (16)', numeric: true },
+    { key: 'sizes.1x', label: '1X', numeric: true },
+    { key: 'sizes.2x', label: '2X', numeric: true },
+    { key: 'sizes.3x', label: '3X', numeric: true },
+    { key: 'sizes.4x', label: '4X', numeric: true },
+    { key: 'delivery_date', label: 'DELIVERY' },
     { key: 'total', label: 'TOTAL', numeric: true }
   ];
 
-  // Editable measurement rows table
+  // Editable measurement rows table - support multiple key formats
   const measColumns = [
     { key: 'name', label: 'Measurement points' },
     { key: 'tolerance', label: 'Tolerance (-/+)', numeric: true },
-    { key: 'xxs_2_3', label: 'XXS (2/3)', numeric: true },
-    { key: 'xs_4_5', label: 'XS (4/5)', numeric: true },
-    { key: 's_6_7', label: 'S (6/7)', numeric: true },
-    { key: 'm_8_9', label: 'M (8/9)', numeric: true },
-    { key: 'l_10_11', label: 'L (10/11)', numeric: true },
-    { key: 'xl_12_13', label: 'XL (12/13)', numeric: true },
-    { key: 'xxl_14_15', label: 'XXL (14/15)', numeric: true },
-    { key: 'xxxl_16', label: 'XXXL (16)', numeric: true }
+    { key: 'xxs', altKeys: ['xxs_2_3', '2_3'], label: 'XXS (2/3)', numeric: true },
+    { key: 'xs', altKeys: ['xs_4_5', '4_5'], label: 'XS (4/5)', numeric: true },
+    { key: 's', altKeys: ['s_6_7', '6_7'], label: 'S (6/7)', numeric: true },
+    { key: 'm', altKeys: ['m_8_9', '8_9'], label: 'M (8/9)', numeric: true },
+    { key: 'l', altKeys: ['l_10_11', '10_11'], label: 'L (10/11)', numeric: true },
+    { key: 'xl', altKeys: ['xl_12_13', '12_13'], label: 'XL (12/13)', numeric: true },
+    { key: 'xxl', altKeys: ['xxl_14_15', '14_15'], label: 'XXL (14/15)', numeric: true },
+    { key: 'xxxl', altKeys: ['xxxl_16', '16'], label: 'XXXL (16)', numeric: true }
   ];
 
   const editBadge = state.editMode ? '<span class="edit-mode-badge"><i class="fas fa-edit"></i> Editable</span>' : '';
@@ -296,61 +318,213 @@ function renderSewingWorksheetPage(page) {
         <div class="sheet-title">${escapeHtml(title)}</div>
 
         <div class="sheet-grid">
-          ${sheetField('Contact', header.contact, `${basePath}.header.contact`)}
-          ${sheetField('Requested by', header.requested_by, `${basePath}.header.requested_by`)}
-          ${sheetField('Work plant', header.work_plant, `${basePath}.header.work_plant`)}
-          ${sheetField('Plant address', header.work_plant_address, `${basePath}.header.work_plant_address`)}
-          ${sheetField('Document date', header.document_date, `${basePath}.header.document_date`)}
-          ${sheetField('Revised', header.revised_date, `${basePath}.header.revised_date`)}
+          ${sheetField('CONTACTO/CONTACT/담당자', header.contact, `${basePath}.header.contact`)}
+          ${sheetField('FECHA', header.document_date, `${basePath}.header.document_date`)}
+          ${sheetField('SOLICITADO POR', header.requested_by, `${basePath}.header.requested_by`)}
+          ${sheetField('PLANTA DE TRABAJO', header.work_plant, `${basePath}.header.work_plant`)}
         </div>
 
-        <div class="sheet-section">1. ORDER INFO</div>
-        <div class="sheet-grid">
-          ${sheetField('#FILE', orderInfo.file, `${basePath}.order_info.file`)}
-          ${sheetField('Buyer', orderInfo.buyer, `${basePath}.order_info.buyer`)}
-          ${sheetField('STYLE', orderInfo.style, `${basePath}.order_info.style`)}
-          ${sheetField('Product', orderInfo.product, `${basePath}.order_info.product`)}
-          ${sheetField('Season', orderInfo.season, `${basePath}.order_info.season`)}
-          ${sheetField('Quantity', orderInfo.qty, `${basePath}.order_info.qty`)}
-          ${sheetField('Ship date', orderInfo.ship_date, `${basePath}.order_info.ship_date`)}
-          ${sheetField('CM cost', orderInfo.cm_cost, `${basePath}.order_info.cm_cost`)}
-          ${sheetField('TOTAL USD', orderInfo.total_usd, `${basePath}.order_info.total_usd`)}
+        <div class="sheet-section">1. INFO. DEL ORDEN/ ORDER INFO./오더 정보</div>
+        <div class="sheet-grid sheet-grid-2col">
+          <div class="sheet-col">
+            ${sheetField('#FILE', orderInfo.file, `${basePath}.order_info.file`)}
+            ${sheetField('CLIENTE/BUYER/바이어', orderInfo.buyer, `${basePath}.order_info.buyer`)}
+            ${sheetField('STYLE #/ # ESTILO', orderInfo.style, `${basePath}.order_info.style`)}
+            ${sheetField('PRODUCTO/PRODUCT/제품', orderInfo.product, `${basePath}.order_info.product`)}
+            ${sheetField('TEMPORADA/SEASON', orderInfo.season, `${basePath}.order_info.season`)}
+            ${sheetField('CANTIDAD/QTY/수량', orderInfo.qty, `${basePath}.order_info.qty`)}
+            ${sheetField('ENTREGA/SHIPDATE/납기', orderInfo.ship_date, `${basePath}.order_info.ship_date`)}
+            ${sheetField('COSTO/CM/공임', orderInfo.cm_cost, `${basePath}.order_info.cm_cost`)}
+          </div>
+          <div class="sheet-col">
+            ${sheetField('HILAZA/YARN/사종', fabricInfo.yarn, `${basePath}.fabric_info.yarn`)}
+            ${sheetField('TELA 1/FABRIC/원단', fabricInfo.fabric, `${basePath}.fabric_info.fabric`)}
+            ${sheetField('ANCHO/WIDTH/폭', fabricInfo.width, `${basePath}.fabric_info.width`)}
+            ${sheetField('PESO/WEIGHT/중량', fabricInfo.weight, `${basePath}.fabric_info.weight`)}
+            ${sheetField('TELA 2/FABRIC2/원단2', fabricInfo.fabric2, `${basePath}.fabric_info.fabric2`)}
+            ${sheetField('ANCHO/WIDTH/폭', fabricInfo.width2, `${basePath}.fabric_info.width2`)}
+            ${sheetField('CONSUMO/YIELD/요척', fabricInfo.yield_total, `${basePath}.fabric_info.yield_total`)}
+          </div>
         </div>
 
-        <div class="sheet-section">2. FABRIC INFO</div>
-        <div class="sheet-grid">
-          ${sheetField('Yarn', fabricInfo.yarn, `${basePath}.fabric_info.yarn`)}
-          ${sheetField('Fabric 1', fabricInfo.fabric, `${basePath}.fabric_info.fabric`)}
-          ${sheetField('Width', fabricInfo.width, `${basePath}.fabric_info.width`)}
-          ${sheetField('Weight', fabricInfo.weight, `${basePath}.fabric_info.weight`)}
-          ${sheetField('Fabric 2', fabricInfo.fabric2, `${basePath}.fabric_info.fabric2`)}
-          ${sheetField('Width 2', fabricInfo.width2, `${basePath}.fabric_info.width2`)}
-          ${sheetField('Yield', fabricInfo.yield_total, `${basePath}.fabric_info.yield_total`)}
-          ${sheetField('LOSS', fabricInfo.loss_comment, `${basePath}.fabric_info.loss_comment`)}
-        </div>
+        <div class="sheet-section">3. PROCESO DEL ORDEN/ ORDER PROCEDURE/오더 공정 순서</div>
+        ${processText ? `<div class="sheet-procedure ${state.editMode ? 'editable-field' : ''}" ${state.editMode ? 'contenteditable="true"' : ''} data-path="${basePath}.order_procedure">${escapeHtml(processText)}</div>` : `<div class="sheet-procedure">CORTE - COSTURA - EMPAQUE</div>`}
 
-        <div class="sheet-section">3. ORDER PROCEDURE</div>
-        ${processText ? `<div class="sheet-field" style="grid-template-columns: 1fr;"><div class="sheet-value ${state.editMode ? 'editable-field' : ''}" ${state.editMode ? 'contenteditable="true"' : ''} data-path="${basePath}.order_procedure">${escapeHtml(processText)}</div></div>` : `<div class="empty">—</div>`}
-
-        <div class="sheet-section">4. QUANTITY BY STYLE, COLOR & PO</div>
+        <div class="sheet-section">4. CANTIDAD POR ESTILO, COLOR & PO/ QTY PER STYLE, COLOR & PO/재단 정보</div>
         ${renderEditableTable(qtyLines, qtyColumns, `${basePath}.quantity_lines`)}
 
-        <div class="sheet-section">5. CUTTING DETAILS</div>
+        <div class="sheet-section">5. DETALLES DE CORTE/ CUTTING DETAIL/재단 작업 디테일</div>
         ${renderEditableLines(cutNotes, `${basePath}.cutting_detail_notes`)}
 
-        <div class="sheet-section">6. SEWING</div>
+        <div class="sheet-section">6. DETALLES DE OPERACION/ SEWING DETAIL/봉제 작업 디테일</div>
         ${renderEditableLines(sewNotes, `${basePath}.sewing_detail_notes`)}
 
-        <div class="sheet-section">7. MEASUREMENT SPECIFICATIONS</div>
+        <div class="sheet-section">7. ESPECIFICACION DE MEDIDAS/ MEASUREMENT SPECIFICATION/치수</div>
         ${renderEditableTable(measRows, measColumns, `${basePath}.measurement_rows`)}
 
-        <div class="sheet-section">8. LABELS / PACKING</div>
+        <div class="sheet-section">8. DETALLES DE ETIQUETAS Y ACABADO/ TRIM & PACKING DETAILS/부자재 및 완성 디테일</div>
         ${renderLabelsInfo(labelsInfo, sw.trim_packing_notes)}
+
+        ${renderYieldInfo(sw.yield_info)}
+        ${renderImportantNotes(sw.important_notes)}
+        ${renderProductOverview(d.product_overview)}
+        ${renderBomMaterials(d.bom_product_materials)}
+        ${renderAdditionalTables(sw.additional_tables || d.additional_tables)}
       </div>
 
       ${rawText ? `<details class="raw"><summary>Extracted text (page ${escapeHtml(page.page_number)})</summary><pre>${escapeHtml(rawText)}</pre></details>` : ''}
     </div>
   `;
+}
+
+// Render yield/consumption info
+function renderYieldInfo(yieldInfo) {
+  if (!yieldInfo || (!yieldInfo.body && !yieldInfo.rib)) return '';
+  const unit = yieldInfo.unit || 'YD/DZ';
+  return `
+    <div class="sheet-section">9. CONSUMO/ YIELD/요척</div>
+    <div class="sheet-grid">
+      ${yieldInfo.body ? sheetField('BODY', `${yieldInfo.body} ${unit}`) : ''}
+      ${yieldInfo.rib ? sheetField('RIB', `${yieldInfo.rib} ${unit}`) : ''}
+    </div>
+  `;
+}
+
+// Render important notes
+function renderImportantNotes(notes) {
+  if (!Array.isArray(notes) || notes.length === 0) return '';
+  const items = notes.map(n => `<li>${escapeHtml(fmt(n))}</li>`).join('');
+  return `
+    <div class="sheet-section">NOTAS IMPORTANTES/ IMPORTANT NOTES/중요 사항</div>
+    <ol class="lines">${items}</ol>
+  `;
+}
+
+// Render product overview (for Tech Pack documents)
+function renderProductOverview(overview) {
+  if (!overview) return '';
+  const fields = [
+    ['Product Name', overview.product_name],
+    ['Product ID', overview.product_id],
+    ['Status', overview.status],
+    ['Brand', overview.brand],
+    ['Department', overview.department],
+    ['Division', overview.division],
+    ['Primary Material', overview.primary_material],
+    ['Vendor Style #', overview.vendor_style_number],
+    ['Workspace ID', overview.workspace_id],
+    ['Design Cycle', overview.design_cycle]
+  ].filter(([_, v]) => v);
+  
+  if (fields.length === 0) return '';
+  
+  return `
+    <div class="sheet-section">PRODUCT OVERVIEW / 제품 개요</div>
+    <div class="sheet-grid">
+      ${fields.map(([label, value]) => sheetField(label, value)).join('')}
+    </div>
+  `;
+}
+
+// Render BOM materials table
+function renderBomMaterials(materials) {
+  if (!Array.isArray(materials) || materials.length === 0) return '';
+  
+  const columns = [
+    { key: 'section', label: 'Section' },
+    { key: 'use', label: 'Use' },
+    { key: 'material_type', label: 'Type' },
+    { key: 'material_id', label: 'Material ID' },
+    { key: 'material_details', label: 'Details' },
+    { key: 'supplier', label: 'Supplier' },
+    { key: 'bom_code', label: 'BOM Code' },
+    { key: 'bom_status', label: 'Status' }
+  ];
+  
+  const thead = columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join('');
+  const tbody = materials.map(row => {
+    const cells = columns.map(c => `<td>${escapeHtml(fmt(row[c.key]) || '—')}</td>`).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+  
+  return `
+    <div class="sheet-section">BILL OF MATERIALS / 자재 명세서</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr>${thead}</tr></thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// Render additional tables
+function renderAdditionalTables(tables) {
+  if (!Array.isArray(tables) || tables.length === 0) return '';
+
+  const isTableObject = (x) => x && typeof x === 'object' && Array.isArray(x.headers) && Array.isArray(x.rows);
+  const isRowObject = (x) => x && typeof x === 'object' && !Array.isArray(x) && !isTableObject(x);
+
+  const tableObjects = tables.filter(isTableObject);
+  const rowObjects = tables.filter(isRowObject);
+
+  const renderTableObject = (table) => {
+    if (!table.headers || !table.rows || table.rows.length === 0) return '';
+    const thead = table.headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+    const tbody = table.rows.map(row => {
+      const rowData = Array.isArray(row) ? row : Object.values(row);
+      const cells = rowData.map(v => `<td>${escapeHtml(fmt(v) || '—')}</td>`).join('');
+      return `<tr>${cells}</tr>`;
+    }).join('');
+    return `
+      <div class="sheet-section">${escapeHtml(table.table_name || 'Additional Data')}</div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr>${thead}</tr></thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const renderRowObjectsAsTable = (rows, title = 'Additional Data') => {
+    if (!Array.isArray(rows) || rows.length === 0) return '';
+
+    const keySet = new Set();
+    rows.forEach(r => {
+      Object.keys(r || {}).forEach(k => keySet.add(k));
+    });
+    const allKeys = Array.from(keySet);
+
+    const priority = ['name', 'tolerance', 'section', 'pom_name', 'pom_id', 'uom'];
+    const prioritized = priority.filter(k => allKeys.includes(k));
+    const remaining = allKeys.filter(k => !prioritized.includes(k));
+    remaining.sort();
+    const columns = [...prioritized, ...remaining];
+
+    if (columns.length === 0) return '';
+
+    const thead = columns.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+    const tbody = rows.map(r => {
+      const cells = columns.map(k => `<td>${escapeHtml(fmt(r?.[k]) || '—')}</td>`).join('');
+      return `<tr>${cells}</tr>`;
+    }).join('');
+
+    return `
+      <div class="sheet-section">${escapeHtml(title)}</div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr>${thead}</tr></thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const htmlTables = tableObjects.map(renderTableObject).join('');
+  const htmlRows = renderRowObjectsAsTable(rowObjects, 'Additional Data');
+
+  return `${htmlTables}${htmlRows}`;
 }
 
 function renderEditableLines(lines, dataPath) {
@@ -486,6 +660,23 @@ function getNestedValue(obj, path) {
   return current;
 }
 
+// Helper to get value with fallback keys (for size columns that may have different formats)
+function getValueWithFallbacks(obj, primaryKey, altKeys) {
+  // Try primary key first
+  let val = primaryKey.includes('.') ? getNestedValue(obj, primaryKey) : obj[primaryKey];
+  if (val !== undefined && val !== null && val !== '') return val;
+  
+  // Try alternative keys
+  if (Array.isArray(altKeys)) {
+    for (const altKey of altKeys) {
+      val = altKey.includes('.') ? getNestedValue(obj, altKey) : obj[altKey];
+      if (val !== undefined && val !== null && val !== '') return val;
+    }
+  }
+  
+  return undefined;
+}
+
 // Helper to set nested value in object using dot notation
 function setNestedValueInRow(obj, path, value) {
   if (!obj || !path) return;
@@ -511,8 +702,8 @@ function renderEditableTable(data, columns, tablePath, options = {}) {
     const thead = columns.map(c => `<th class="${c.numeric ? 'num' : ''}">${escapeHtml(c.label)}</th>`).join('');
     const tbody = rows.map((row, i) => {
       const cells = columns.map(c => {
-        // Support nested keys like "sizes.xxs_2_3"
-        const val = c.key.includes('.') ? getNestedValue(row, c.key) : row[c.key];
+        // Support nested keys with fallbacks for different formats
+        const val = getValueWithFallbacks(row, c.key, c.altKeys);
         return `<td class="${c.numeric ? 'num' : ''}">${escapeHtml(fmt(val) || '—')}</td>`;
       }).join('');
       return `<tr>${showRowNumbers ? `<td>${i + 1}</td>` : ''}${cells}</tr>`;
@@ -557,8 +748,8 @@ function renderEditableTable(data, columns, tablePath, options = {}) {
 
   const tbody = rows.map((row, rowIdx) => {
     const cells = columns.map((c, colIdx) => {
-      // Support nested keys like "sizes.xxs_2_3"
-      const val = c.key.includes('.') ? getNestedValue(row, c.key) : row[c.key];
+      // Support nested keys with fallbacks for different formats
+      const val = getValueWithFallbacks(row, c.key, c.altKeys);
       return `
         <td class="editable-cell ${c.numeric ? 'num' : ''}" contenteditable="true"
             data-table="${tableId}" data-row="${rowIdx}" data-col="${colIdx}" data-key="${c.key}"
@@ -849,6 +1040,7 @@ function renderProductFactura(d) {
   const measPlus = Array.isArray(d.measurements_plus_wide) ? d.measurements_plus_wide : [];
   const measRegular = Array.isArray(d.measurements_regular_wide) ? d.measurements_regular_wide : [];
   const construction = Array.isArray(d.product_details_construction) ? d.product_details_construction : [];
+  const extractedTables = Array.isArray(d.items) ? d.items : (Array.isArray(d.additional_tables) ? d.additional_tables : []);
 
   const overviewHtml = `
     <div class="section-title">Product Overview ${state.editMode ? '<span class="edit-mode-badge"><i class="fas fa-edit"></i> Edit mode</span>' : ''}</div>
@@ -963,6 +1155,13 @@ function renderProductFactura(d) {
     ${renderEditableTable(construction, constColumns, 'product_details_construction')}
   `;
 
+  const extraTablesHtml = extractedTables.length
+    ? `
+      <div class="section-title">Extracted Tables</div>
+      ${renderAdditionalTables(extractedTables)}
+    `
+    : '';
+
   return `
     <div class="page-card">
       <div class="page-title">Product Specification</div>
@@ -973,6 +1172,7 @@ function renderProductFactura(d) {
       ${measPlusHtml}
       ${measRegHtml}
       ${constHtml}
+      ${extraTablesHtml}
     </div>
   `;
 }
@@ -985,6 +1185,14 @@ function renderDocumentPage(page) {
 
   if (root?.template_type === 'sewing_worksheet') {
     return renderSewingWorksheetPage(page);
+  }
+
+  if (root?.template_type === 'product_spec') {
+    return renderProductFactura(root);
+  }
+
+  if (root?.template_type === 'unknown' && (root?.product_overview || root?.bom_product_materials || root?.additional_tables || root?.items)) {
+    return renderProductFactura(root);
   }
 
   if (root?.template_type === 'product_factura') {
@@ -1205,13 +1413,20 @@ function renderExtractedImages(images) {
     return '';
   }
   
+  // Store images globally for ROI access
+  window._extractedImages = images;
+  
   const imagesHtml = images.map((img, idx) => `
-    <div class="extracted-image-item">
+    <div class="extracted-image-item" data-image-idx="${idx}">
       <div class="extracted-image-header">
         <span class="image-info">Page ${img.page}, Image #${img.index} (${img.width}x${img.height})</span>
+        <button class="btn-ocr-roi" onclick="openImageRoiModal(${idx})" title="Seleccionar región para OCR">
+          <i class="fas fa-crop-alt"></i> OCR ROI
+        </button>
       </div>
-      <img src="${img.data_url}" alt="Extracted image ${idx + 1}" class="extracted-image-preview" />
+      <img src="${img.data_url}" alt="Extracted image ${idx + 1}" class="extracted-image-preview" onclick="openImageRoiModal(${idx})" style="cursor:pointer" />
       ${img.ocr_text ? `<div class="extracted-image-ocr"><strong>OCR text:</strong><pre>${escapeHtml(img.ocr_text)}</pre></div>` : ''}
+      <div class="extracted-image-roi-results" id="roi-results-${idx}" style="display:none"></div>
     </div>
   `).join('');
   
@@ -1224,7 +1439,901 @@ function renderExtractedImages(images) {
         ${imagesHtml}
       </div>
     </div>
+    
+    <!-- ROI Selection Modal -->
+    <div id="roi-modal" class="roi-modal" style="display:none">
+      <div class="roi-modal-content">
+        <div class="roi-modal-header">
+          <h3><i class="fas fa-crop-alt"></i> Extraer Región de Imagen</h3>
+          <button class="roi-modal-close" onclick="closeRoiModal()">&times;</button>
+        </div>
+        <div class="roi-modal-body">
+          <div class="roi-tabs">
+            <button class="roi-tab active" onclick="switchRoiTab('auto')" id="roi-tab-auto">
+              <i class="fas fa-magic"></i> Auto-detectar
+            </button>
+            <button class="roi-tab" onclick="switchRoiTab('manual')" id="roi-tab-manual">
+              <i class="fas fa-draw-polygon"></i> Selección Manual
+            </button>
+          </div>
+          
+          <div class="roi-auto-panel" id="roi-auto-panel">
+            <div class="roi-instructions">
+              <i class="fas fa-info-circle"></i> Haz clic en una región detectada para extraer texto e imagen.
+            </div>
+            <div class="roi-detected-regions" id="roi-detected-regions">
+              <div class="roi-detecting"><div class="spinner"></div> Detectando regiones de texto...</div>
+            </div>
+          </div>
+          
+          <div class="roi-manual-panel" id="roi-manual-panel" style="display:none">
+            <div class="roi-instructions">
+              <i class="fas fa-info-circle"></i> Dibuja un rectángulo sobre el área que deseas extraer.
+            </div>
+          </div>
+          
+          <div class="roi-canvas-container">
+            <canvas id="roi-modal-canvas"></canvas>
+          </div>
+          <div class="roi-info" id="roi-modal-info" style="display:none">
+            <strong>Región:</strong> <span id="roi-modal-coords"></span>
+          </div>
+          <div class="roi-selected-rois" id="roi-selected-rois" style="display:none"></div>
+        </div>
+        <div class="roi-modal-footer">
+          <label class="roi-checkbox">
+            <input type="checkbox" id="roi-use-claude">
+            <span>Usar Claude Vision (OCR más preciso)</span>
+          </label>
+          <div class="roi-modal-buttons">
+            <button class="btn-secondary" onclick="closeRoiModal()">Cancelar</button>
+            <button class="btn-info" id="roi-extract-image-btn" onclick="extractRoiImageOnly()" disabled>
+              <i class="fas fa-image"></i> Solo Imagen
+            </button>
+            <button class="btn-success" id="roi-extract-btn" onclick="extractRoiText()" disabled>
+              <i class="fas fa-file-alt"></i> Texto + Imagen
+            </button>
+          </div>
+        </div>
+        <div class="roi-modal-results" id="roi-modal-results" style="display:none">
+          <div class="roi-results-header">
+            <strong><i class="fas fa-file-alt"></i> Texto Extraído:</strong>
+            <div class="roi-results-actions">
+              <button class="btn-sm" onclick="copyRoiText()" title="Copiar texto"><i class="fas fa-copy"></i></button>
+            </div>
+          </div>
+          <pre id="roi-modal-text"></pre>
+          <div class="roi-cropped-section" id="roi-cropped-section" style="display:none">
+            <strong><i class="fas fa-image"></i> Imagen Recortada:</strong>
+            <div class="roi-cropped-preview">
+              <img id="roi-cropped-img" src="" alt="Cropped region" />
+              <div id="roi-cropped-gallery"></div>
+            </div>
+            <div class="roi-cropped-actions">
+              <button class="btn-primary btn-sm" onclick="downloadCroppedImage()">
+                <i class="fas fa-download"></i> Descargar Imagen
+              </button>
+              <button class="btn-secondary btn-sm" onclick="attachCroppedImage()">
+                <i class="fas fa-paperclip"></i> Adjuntar a Resultados
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="roi-modal-loading" id="roi-modal-loading" style="display:none">
+          <div class="spinner"></div>
+          <span id="roi-loading-text">Procesando...</span>
+        </div>
+      </div>
+    </div>
   `;
+}
+
+// ROI Modal State
+const roiModalState = {
+  imageIdx: null,
+  canvas: null,
+  ctx: null,
+  image: null,
+  imageData: null,
+  isDrawing: false,
+  startX: 0,
+  startY: 0,
+  currentRoi: null,
+  selectedRois: [],
+  selectedRegionIndices: [],
+  scale: 1,
+  detectedRegions: [],
+  activeTab: 'auto',
+  lastCroppedImage: null,
+  lastCroppedImages: [],
+  lastExtractedPerZone: [],
+  selectedRegion: null
+};
+
+function openImageRoiModal(imageIdx) {
+  const images = window._extractedImages;
+  if (!images || !images[imageIdx]) return;
+  
+  const img = images[imageIdx];
+  roiModalState.imageIdx = imageIdx;
+  roiModalState.imageData = img.data_url;
+  roiModalState.currentRoi = null;
+  roiModalState.selectedRois = [];
+  roiModalState.selectedRegionIndices = [];
+  roiModalState.detectedRegions = [];
+  roiModalState.activeTab = 'auto';
+  roiModalState.lastCroppedImage = null;
+  roiModalState.lastCroppedImages = [];
+  roiModalState.lastExtractedPerZone = [];
+  
+  // Show modal
+  const modal = document.getElementById('roi-modal');
+  modal.style.display = 'flex';
+  
+  // Reset tabs
+  switchRoiTab('auto');
+  
+  // Load image into canvas
+  const canvas = document.getElementById('roi-modal-canvas');
+  const ctx = canvas.getContext('2d');
+  roiModalState.canvas = canvas;
+  roiModalState.ctx = ctx;
+  
+  const imgEl = new Image();
+  imgEl.onload = () => {
+    roiModalState.image = imgEl;
+    
+    // Calculate scale to fit in modal
+    const container = document.querySelector('.roi-canvas-container');
+    const maxWidth = Math.min(container.clientWidth - 20, 800);
+    const maxHeight = 500;
+    
+    let width = imgEl.width;
+    let height = imgEl.height;
+    roiModalState.scale = 1;
+    
+    if (width > maxWidth) {
+      roiModalState.scale = maxWidth / width;
+      width = maxWidth;
+      height = imgEl.height * roiModalState.scale;
+    }
+    if (height > maxHeight) {
+      roiModalState.scale = Math.min(roiModalState.scale, maxHeight / imgEl.height);
+      width = imgEl.width * roiModalState.scale;
+      height = imgEl.height * roiModalState.scale;
+    }
+    
+    canvas.width = width;
+    canvas.height = height;
+    redrawRoiCanvas();
+    
+    // Bind canvas events for manual mode
+    canvas.onmousedown = (e) => {
+      if (roiModalState.activeTab === 'manual') startRoiDrawing(e);
+    };
+    canvas.onmousemove = (e) => {
+      if (roiModalState.activeTab === 'manual') drawRoi(e);
+      else highlightRegionOnHover(e);
+    };
+    canvas.onmouseup = stopRoiDrawing;
+    canvas.onmouseleave = stopRoiDrawing;
+    canvas.onclick = (e) => {
+      if (roiModalState.activeTab !== 'auto') return;
+      selectRegionOnClick(e);
+    };
+    
+    // Touch support
+    canvas.ontouchstart = (e) => {
+      if (roiModalState.activeTab !== 'manual') return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      startRoiDrawing({ offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
+    };
+    canvas.ontouchmove = (e) => {
+      if (roiModalState.activeTab !== 'manual') return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      drawRoi({ offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
+    };
+    canvas.ontouchend = stopRoiDrawing;
+    
+    // Auto-detect regions
+    detectTextRegions();
+  };
+  imgEl.src = img.data_url;
+  
+  // Reset UI
+  document.getElementById('roi-extract-btn').disabled = true;
+  document.getElementById('roi-extract-image-btn').disabled = true;
+  document.getElementById('roi-modal-info').style.display = 'none';
+  document.getElementById('roi-modal-results').style.display = 'none';
+  document.getElementById('roi-modal-loading').style.display = 'none';
+  document.getElementById('roi-cropped-section').style.display = 'none';
+  updateSelectedRoisUI();
+}
+
+function switchRoiTab(tab) {
+  roiModalState.activeTab = tab;
+  
+  document.getElementById('roi-tab-auto').classList.toggle('active', tab === 'auto');
+  document.getElementById('roi-tab-manual').classList.toggle('active', tab === 'manual');
+  document.getElementById('roi-auto-panel').style.display = tab === 'auto' ? 'block' : 'none';
+  document.getElementById('roi-manual-panel').style.display = tab === 'manual' ? 'block' : 'none';
+  
+  // Reset selection when switching tabs
+  roiModalState.currentRoi = null;
+  roiModalState.selectedRegion = null;
+  roiModalState.selectedRois = [];
+  roiModalState.selectedRegionIndices = [];
+  roiModalState.lastExtractedPerZone = [];
+  document.getElementById('roi-extract-btn').disabled = true;
+  document.getElementById('roi-extract-image-btn').disabled = true;
+  document.getElementById('roi-modal-info').style.display = 'none';
+  updateSelectedRoisUI();
+  redrawRoiCanvas();
+}
+
+async function detectTextRegions() {
+  const { imageData } = roiModalState;
+  if (!imageData) return;
+  
+  const regionsContainer = document.getElementById('roi-detected-regions');
+  regionsContainer.innerHTML = '<div class="roi-detecting"><div class="spinner"></div> Detectando regiones (Local)...</div>';
+  
+  try {
+    let base64 = imageData;
+    if (base64.includes(',')) {
+      base64 = base64.split(',')[1];
+    }
+    
+    const response = await fetch(`${API_BASE.replace(/\/api$/, '')}/api/ocr/detect-regions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_base64: base64 })
+    });
+    
+    const result = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    
+    roiModalState.detectedRegions = result.regions || [];
+    renderDetectedRegions();
+    redrawRoiCanvas();
+    
+  } catch (error) {
+    console.error('Error detecting regions:', error);
+    regionsContainer.innerHTML = `
+      <div class="roi-no-regions">
+        <i class="fas fa-exclamation-triangle"></i> 
+        No se pudieron detectar regiones automáticamente. 
+        <br>Usa la pestaña "Selección Manual" para dibujar una región.
+      </div>
+    `;
+  }
+}
+
+function renderDetectedRegions() {
+  const { detectedRegions } = roiModalState;
+  const container = document.getElementById('roi-detected-regions');
+  
+  if (detectedRegions.length === 0) {
+    container.innerHTML = `
+      <div class="roi-no-regions">
+        <i class="fas fa-info-circle"></i> 
+        No se detectaron regiones. 
+        <br>Usa la pestaña "Selección Manual" para dibujar una región.
+      </div>
+    `;
+    return;
+  }
+  
+  // Count by type
+  const textCount = detectedRegions.filter(r => r.type === 'text').length;
+  const visualCount = detectedRegions.filter(r => r.is_visual).length;
+  const mixedCount = detectedRegions.filter(r => r.type === 'mixed').length;
+  
+  const getTypeIcon = (type) => {
+    switch(type) {
+      case 'text': return '<i class="fas fa-font" title="Texto"></i>';
+      case 'illustration': return '<i class="fas fa-image" title="Ilustración"></i>';
+      case 'box': return '<i class="fas fa-square" title="Caja/Recuadro"></i>';
+      case 'shape': return '<i class="fas fa-shapes" title="Forma"></i>';
+      case 'banner': return '<i class="fas fa-minus" title="Banner"></i>';
+      case 'mixed': return '<i class="fas fa-layer-group" title="Mixto"></i>';
+      case 'colored': return '<i class="fas fa-palette" title="Área de color"></i>';
+      case 'section': return '<i class="fas fa-th-large" title="Sección"></i>';
+      default: return '<i class="fas fa-vector-square"></i>';
+    }
+  };
+  
+  const getTypeClass = (type, isVisual) => {
+    if (type === 'text') return 'type-text';
+    if (type === 'mixed') return 'type-mixed';
+    if (isVisual) return 'type-visual';
+    return '';
+  };
+  
+  const regionsHtml = detectedRegions.map((region, idx) => `
+    <div class="roi-region-item ${getTypeClass(region.type, region.is_visual)}" 
+         onclick="toggleDetectedRegion(${idx})" data-region-idx="${idx}">
+      <div class="roi-region-info">
+        <span class="roi-region-num">#${idx + 1}</span>
+        <span class="roi-region-type">${getTypeIcon(region.type)}</span>
+        <span class="roi-region-size">${region.width}x${region.height}px</span>
+        <span class="roi-region-conf">${Math.round(region.confidence)}%</span>
+      </div>
+      <div class="roi-region-text">${region.text ? escapeHtml(region.text.substring(0, 40)) + (region.text.length > 40 ? '...' : '') : `<em>${region.type}</em>`}</div>
+    </div>
+  `).join('');
+  
+  container.innerHTML = `
+    <div class="roi-regions-summary">
+      <span class="roi-summary-item"><i class="fas fa-font"></i> ${textCount} texto</span>
+      <span class="roi-summary-item"><i class="fas fa-image"></i> ${visualCount} visual</span>
+      ${mixedCount > 0 ? `<span class="roi-summary-item"><i class="fas fa-layer-group"></i> ${mixedCount} mixto</span>` : ''}
+    </div>
+    <div class="roi-regions-list">
+      ${regionsHtml}
+    </div>
+    <div class="roi-regions-hint">
+      <i class="fas fa-mouse-pointer"></i> Haz clic en una región o directamente en la imagen
+    </div>
+  `;
+}
+
+function toggleDetectedRegion(idx) {
+  const region = roiModalState.detectedRegions[idx];
+  if (!region) return;
+
+  const existsAt = roiModalState.selectedRois.findIndex(r => r.regionIdx === idx);
+  if (existsAt >= 0) {
+    roiModalState.selectedRois.splice(existsAt, 1);
+    roiModalState.selectedRegionIndices = roiModalState.selectedRois
+      .filter(r => typeof r.regionIdx === 'number')
+      .map(r => r.regionIdx);
+  } else {
+    roiModalState.selectedRois.push({
+      x: region.x,
+      y: region.y,
+      width: region.width,
+      height: region.height,
+      type: region.type || (region.is_visual ? 'visual' : 'text'),
+      source: 'auto',
+      regionIdx: idx
+    });
+    roiModalState.selectedRegionIndices.push(idx);
+  }
+
+  const last = roiModalState.selectedRois[roiModalState.selectedRois.length - 1] || null;
+  roiModalState.currentRoi = last ? { x: last.x, y: last.y, width: last.width, height: last.height } : null;
+  roiModalState.selectedRegion = last ? { type: last.type } : null;
+
+  // Highlight selected in list
+  document.querySelectorAll('.roi-region-item').forEach((el, i) => {
+    el.classList.toggle('selected', roiModalState.selectedRegionIndices.includes(i));
+  });
+
+  const count = roiModalState.selectedRois.length;
+  if (count > 0) {
+    const r = roiModalState.currentRoi;
+    document.getElementById('roi-modal-coords').textContent = 
+      `Seleccionadas: ${count} | Última: X: ${r.x}, Y: ${r.y}, ${r.width}x${r.height}px`;
+    document.getElementById('roi-modal-info').style.display = 'block';
+    document.getElementById('roi-extract-btn').disabled = false;
+    document.getElementById('roi-extract-image-btn').disabled = false;
+  } else {
+    document.getElementById('roi-extract-btn').disabled = true;
+    document.getElementById('roi-extract-image-btn').disabled = true;
+    document.getElementById('roi-modal-info').style.display = 'none';
+  }
+
+  updateSelectedRoisUI();
+  redrawRoiCanvas();
+}
+
+function highlightRegionOnHover(e) {
+  if (roiModalState.activeTab !== 'auto' || roiModalState.detectedRegions.length === 0) return;
+  
+  const { scale, detectedRegions } = roiModalState;
+  const mouseX = e.offsetX / scale;
+  const mouseY = e.offsetY / scale;
+  
+  // Find region under cursor
+  let hoveredIdx = -1;
+  for (let i = 0; i < detectedRegions.length; i++) {
+    const r = detectedRegions[i];
+    if (mouseX >= r.x && mouseX <= r.x + r.width && mouseY >= r.y && mouseY <= r.y + r.height) {
+      hoveredIdx = i;
+      break;
+    }
+  }
+  
+  // Update cursor
+  roiModalState.canvas.style.cursor = hoveredIdx >= 0 ? 'pointer' : 'default';
+}
+
+function selectRegionOnClick(e) {
+  if (roiModalState.activeTab !== 'auto' || roiModalState.detectedRegions.length === 0) return;
+  
+  const { scale, detectedRegions } = roiModalState;
+  const mouseX = e.offsetX / scale;
+  const mouseY = e.offsetY / scale;
+  
+  // Find region under cursor
+  for (let i = 0; i < detectedRegions.length; i++) {
+    const r = detectedRegions[i];
+    if (mouseX >= r.x && mouseX <= r.x + r.width && mouseY >= r.y && mouseY <= r.y + r.height) {
+      toggleDetectedRegion(i);
+      return;
+    }
+  }
+}
+
+function closeRoiModal() {
+  document.getElementById('roi-modal').style.display = 'none';
+  roiModalState.imageIdx = null;
+  roiModalState.currentRoi = null;
+  roiModalState.selectedRois = [];
+  roiModalState.selectedRegionIndices = [];
+  roiModalState.lastExtractedPerZone = [];
+}
+
+function redrawRoiCanvas() {
+  const { ctx, canvas, image, currentRoi, scale, detectedRegions, activeTab } = roiModalState;
+  if (!image) return;
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  
+  // Color mapping for region types
+  const getRegionColor = (region) => {
+    switch(region.type) {
+      case 'text': return '#00ff00';      // Green for text
+      case 'illustration': return '#ff9800'; // Orange for illustrations
+      case 'box': return '#2196f3';       // Blue for boxes
+      case 'shape': return '#9c27b0';     // Purple for shapes
+      case 'banner': return '#00bcd4';    // Cyan for banners
+      case 'mixed': return '#ffeb3b';     // Yellow for mixed
+      case 'colored': return '#e91e63';   // Pink for colored areas
+      case 'section': return '#607d8b';   // Gray for sections
+      default: return '#00ff00';
+    }
+  };
+  
+  // Draw detected regions in auto mode
+  if (activeTab === 'auto' && detectedRegions.length > 0) {
+    detectedRegions.forEach((region, idx) => {
+      const isSelected = roiModalState.selectedRegionIndices.includes(idx);
+      
+      const color = getRegionColor(region);
+      ctx.strokeStyle = isSelected ? '#ff0000' : color;
+      ctx.lineWidth = isSelected ? 3 : 2;
+      ctx.setLineDash(isSelected ? [] : [5, 3]);
+      ctx.strokeRect(
+        region.x * scale,
+        region.y * scale,
+        region.width * scale,
+        region.height * scale
+      );
+      ctx.setLineDash([]);
+      
+      // Draw region number with background
+      if (!isSelected) {
+        const numX = region.x * scale + 2;
+        const numY = region.y * scale + 2;
+        ctx.fillStyle = color;
+        ctx.fillRect(numX, numY, 18, 16);
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 11px Arial';
+        ctx.fillText(`${idx + 1}`, numX + 4, numY + 12);
+      }
+    });
+  }
+  
+  if (currentRoi) {
+    // Draw selected ROI rectangle
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(
+      currentRoi.x * scale,
+      currentRoi.y * scale,
+      currentRoi.width * scale,
+      currentRoi.height * scale
+    );
+    
+    // Semi-transparent overlay outside ROI
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    const rx = currentRoi.x * scale;
+    const ry = currentRoi.y * scale;
+    const rw = currentRoi.width * scale;
+    const rh = currentRoi.height * scale;
+    
+    ctx.fillRect(0, 0, canvas.width, ry);
+    ctx.fillRect(0, ry + rh, canvas.width, canvas.height - ry - rh);
+    ctx.fillRect(0, ry, rx, rh);
+    ctx.fillRect(rx + rw, ry, canvas.width - rx - rw, rh);
+  }
+
+  if (roiModalState.selectedRois.length > 0) {
+    roiModalState.selectedRois.forEach((r) => {
+      ctx.strokeStyle = '#ff0000';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.strokeRect(r.x * scale, r.y * scale, r.width * scale, r.height * scale);
+    });
+  }
+}
+
+function startRoiDrawing(e) {
+  roiModalState.isDrawing = true;
+  roiModalState.startX = e.offsetX / roiModalState.scale;
+  roiModalState.startY = e.offsetY / roiModalState.scale;
+  roiModalState.currentRoi = null;
+}
+
+function drawRoi(e) {
+  if (!roiModalState.isDrawing) return;
+  
+  const currentX = e.offsetX / roiModalState.scale;
+  const currentY = e.offsetY / roiModalState.scale;
+  
+  const x = Math.min(roiModalState.startX, currentX);
+  const y = Math.min(roiModalState.startY, currentY);
+  const width = Math.abs(currentX - roiModalState.startX);
+  const height = Math.abs(currentY - roiModalState.startY);
+  
+  roiModalState.currentRoi = {
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(width),
+    height: Math.round(height)
+  };
+  
+  redrawRoiCanvas();
+  
+  // Update info
+  document.getElementById('roi-modal-coords').textContent = 
+    `X: ${roiModalState.currentRoi.x}, Y: ${roiModalState.currentRoi.y}, ` +
+    `${roiModalState.currentRoi.width}x${roiModalState.currentRoi.height}px`;
+  document.getElementById('roi-modal-info').style.display = 'block';
+}
+
+function stopRoiDrawing() {
+  if (roiModalState.isDrawing && roiModalState.currentRoi && 
+      roiModalState.currentRoi.width > 5 && roiModalState.currentRoi.height > 5) {
+    roiModalState.selectedRois.push({
+      ...roiModalState.currentRoi,
+      type: 'manual',
+      source: 'manual'
+    });
+    roiModalState.selectedRegionIndices = roiModalState.selectedRois
+      .filter(r => typeof r.regionIdx === 'number')
+      .map(r => r.regionIdx);
+    document.getElementById('roi-extract-btn').disabled = roiModalState.selectedRois.length === 0;
+    document.getElementById('roi-extract-image-btn').disabled = roiModalState.selectedRois.length === 0;
+    document.getElementById('roi-modal-coords').textContent = 
+      `Seleccionadas: ${roiModalState.selectedRois.length} | Última: X: ${roiModalState.currentRoi.x}, Y: ${roiModalState.currentRoi.y}, ${roiModalState.currentRoi.width}x${roiModalState.currentRoi.height}px`;
+    document.getElementById('roi-modal-info').style.display = 'block';
+    updateSelectedRoisUI();
+  }
+  roiModalState.isDrawing = false;
+}
+
+function removeSelectedRoi(idx) {
+  if (idx < 0 || idx >= roiModalState.selectedRois.length) return;
+  const removed = roiModalState.selectedRois[idx];
+  roiModalState.selectedRois.splice(idx, 1);
+  if (removed && typeof removed.regionIdx === 'number') {
+    roiModalState.selectedRegionIndices = roiModalState.selectedRegionIndices.filter(i => i !== removed.regionIdx);
+  }
+  const last = roiModalState.selectedRois[roiModalState.selectedRois.length - 1] || null;
+  roiModalState.currentRoi = last ? { x: last.x, y: last.y, width: last.width, height: last.height } : null;
+  document.getElementById('roi-extract-btn').disabled = roiModalState.selectedRois.length === 0;
+  document.getElementById('roi-extract-image-btn').disabled = roiModalState.selectedRois.length === 0;
+  updateSelectedRoisUI();
+  redrawRoiCanvas();
+}
+
+function clearSelectedRois() {
+  roiModalState.selectedRois = [];
+  roiModalState.selectedRegionIndices = [];
+  roiModalState.currentRoi = null;
+  roiModalState.selectedRegion = null;
+  document.getElementById('roi-extract-btn').disabled = true;
+  document.getElementById('roi-extract-image-btn').disabled = true;
+  document.getElementById('roi-modal-info').style.display = 'none';
+  updateSelectedRoisUI();
+  redrawRoiCanvas();
+}
+
+function updateSelectedRoisUI() {
+  const container = document.getElementById('roi-selected-rois');
+  if (!container) return;
+  const count = roiModalState.selectedRois.length;
+  if (count === 0) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+  const items = roiModalState.selectedRois.map((r, idx) => {
+    const label = r.source === 'manual' ? 'Manual' : (r.type || 'Auto');
+    return `
+      <div class="roi-selected-item">
+        <span class="roi-selected-label">${label}</span>
+        <span class="roi-selected-coords">X:${r.x} Y:${r.y} ${r.width}x${r.height}</span>
+        <button class="btn-sm" onclick="removeSelectedRoi(${idx})" title="Quitar"><i class="fas fa-times"></i></button>
+      </div>
+    `;
+  }).join('');
+  container.innerHTML = `
+    <div class="roi-selected-header">
+      <strong>Zonas seleccionadas: ${count}</strong>
+      <button class="btn-sm" onclick="clearSelectedRois()" title="Limpiar"><i class="fas fa-eraser"></i></button>
+    </div>
+    <div class="roi-selected-list">${items}</div>
+  `;
+  container.style.display = 'block';
+}
+
+async function extractRoiText() {
+  const { imageData } = roiModalState;
+  const rois = roiModalState.selectedRois.length > 0 ? roiModalState.selectedRois : (roiModalState.currentRoi ? [{...roiModalState.currentRoi, source: 'single'}] : []);
+  if (rois.length === 0 || !imageData) return;
+  
+  const useClaude = document.getElementById('roi-use-claude').checked;
+  
+  document.getElementById('roi-modal-loading').style.display = 'flex';
+  document.getElementById('roi-loading-text').textContent = 'Extrayendo texto e imagen...';
+  document.getElementById('roi-modal-results').style.display = 'none';
+  document.getElementById('roi-cropped-section').style.display = 'none';
+  
+  try {
+    let base64 = imageData;
+    if (base64.includes(',')) {
+      base64 = base64.split(',')[1];
+    }
+    
+    const texts = [];
+    const cropped = [];
+    const perZone = [];
+
+    for (let i = 0; i < rois.length; i++) {
+      const r = rois[i];
+      const response = await fetch(`${API_BASE.replace(/\/api$/, '')}/api/ocr/roi`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_base64: base64,
+          x: r.x,
+          y: r.y,
+          width: r.width,
+          height: r.height,
+          use_claude: useClaude
+        })
+      });
+
+      const result = await response.json();
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      texts.push(`--- Zona ${i + 1} (${r.width}x${r.height}) ---\n${result.text || '(No se encontró texto)'}`);
+      if (result.cropped_image) {
+        cropped.push({ idx: i, dataUrl: result.cropped_image, roi: r });
+      }
+
+      perZone.push({
+        roi: { x: r.x, y: r.y, width: r.width, height: r.height },
+        text: result.text || '',
+        cropped_image: result.cropped_image || null
+      });
+    }
+
+    roiModalState.lastCroppedImages = cropped.map(c => c.dataUrl);
+    roiModalState.lastCroppedImage = roiModalState.lastCroppedImages[0] || null;
+    roiModalState.lastExtractedPerZone = perZone;
+
+    document.getElementById('roi-modal-text').textContent = texts.join('\n\n');
+    document.getElementById('roi-modal-results').style.display = 'block';
+
+    if (cropped.length > 0) {
+      const galleryHtml = cropped.map((c) => `
+        <div class="roi-crop-tile">
+          <img src="${c.dataUrl}" alt="Cropped region" />
+          <button class="btn-sm" onclick="downloadImageFromSrc('${c.dataUrl}', 'roi_${roiModalState.imageIdx}_${Date.now()}_${c.idx + 1}.png')">
+            <i class="fas fa-download"></i> Descargar
+          </button>
+        </div>
+      `).join('');
+      const imgEl = document.getElementById('roi-cropped-img');
+      if (imgEl) imgEl.src = roiModalState.lastCroppedImage;
+      const section = document.getElementById('roi-cropped-section');
+      section.style.display = 'block';
+      const gallery = document.getElementById('roi-cropped-gallery');
+      if (gallery) gallery.innerHTML = `<div class="roi-crops-grid">${galleryHtml}</div>`;
+    }
+
+    const resultsDiv = document.getElementById(`roi-results-${roiModalState.imageIdx}`);
+    if (resultsDiv) {
+      const mainGallery = cropped.map((c) => `
+        <div class="roi-result-image">
+          <img src="${c.dataUrl}" alt="Cropped region" />
+          <button class="btn-sm" onclick="downloadImageFromSrc('${c.dataUrl}', 'roi_${roiModalState.imageIdx}_${Date.now()}_${c.idx + 1}.png')">
+            <i class="fas fa-download"></i> Descargar
+          </button>
+        </div>
+      `).join('');
+      resultsDiv.innerHTML = `
+        <div class="roi-result-item">
+          <div class="roi-result-header">
+            <strong>OCR ROI (Zonas: ${rois.length}):</strong>
+          </div>
+          <pre>${escapeHtml(texts.join('\n\n'))}</pre>
+          ${mainGallery ? `<div class="roi-result-gallery">${mainGallery}</div>` : ''}
+        </div>
+      `;
+      resultsDiv.style.display = 'block';
+    }
+    
+  } catch (error) {
+    console.error('OCR ROI error:', error);
+    alert('Error al extraer texto: ' + error.message);
+  } finally {
+    document.getElementById('roi-modal-loading').style.display = 'none';
+  }
+}
+
+function copyRoiText() {
+  const text = document.getElementById('roi-modal-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Texto copiado al portapapeles');
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+  });
+}
+
+async function extractRoiImageOnly() {
+  const { imageData, image } = roiModalState;
+  const rois = roiModalState.selectedRois.length > 0 ? roiModalState.selectedRois : (roiModalState.currentRoi ? [{...roiModalState.currentRoi, source: 'single'}] : []);
+  if (rois.length === 0 || !imageData) return;
+  
+  document.getElementById('roi-modal-loading').style.display = 'flex';
+  document.getElementById('roi-loading-text').textContent = 'Extrayendo imagen...';
+  document.getElementById('roi-modal-results').style.display = 'none';
+  document.getElementById('roi-cropped-section').style.display = 'none';
+  
+  try {
+    const croppedImages = [];
+    for (let i = 0; i < rois.length; i++) {
+      const r = rois[i];
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = r.width;
+      cropCanvas.height = r.height;
+      const cropCtx = cropCanvas.getContext('2d');
+      cropCtx.drawImage(image, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
+      const croppedDataUrl = cropCanvas.toDataURL('image/png');
+      croppedImages.push({ idx: i, dataUrl: croppedDataUrl, roi: r });
+    }
+
+    roiModalState.lastCroppedImages = croppedImages.map(c => c.dataUrl);
+    roiModalState.lastCroppedImage = roiModalState.lastCroppedImages[0] || null;
+
+    document.getElementById('roi-modal-text').textContent = `(Solo imagen - ${rois.length} zona(s))`;
+    document.getElementById('roi-modal-results').style.display = 'block';
+
+    const galleryHtml = croppedImages.map((c) => `
+      <div class="roi-crop-tile">
+        <img src="${c.dataUrl}" alt="Cropped region" />
+        <button class="btn-sm" onclick="downloadImageFromSrc('${c.dataUrl}', 'roi_${roiModalState.imageIdx}_${Date.now()}_${c.idx + 1}.png')">
+          <i class="fas fa-download"></i> Descargar
+        </button>
+      </div>
+    `).join('');
+
+    const section = document.getElementById('roi-cropped-section');
+    section.style.display = 'block';
+    const gallery = document.getElementById('roi-cropped-gallery');
+    if (gallery) gallery.innerHTML = `<div class="roi-crops-grid">${galleryHtml}</div>`;
+
+    const resultsDiv = document.getElementById(`roi-results-${roiModalState.imageIdx}`);
+    if (resultsDiv) {
+      const mainGallery = croppedImages.map((c) => `
+        <div class="roi-result-image">
+          <img src="${c.dataUrl}" alt="Cropped region" />
+          <button class="btn-sm" onclick="downloadImageFromSrc('${c.dataUrl}', 'roi_${roiModalState.imageIdx}_${Date.now()}_${c.idx + 1}.png')">
+            <i class="fas fa-download"></i> Descargar
+          </button>
+        </div>
+      `).join('');
+      resultsDiv.innerHTML = `
+        <div class="roi-result-item">
+          <div class="roi-result-header">
+            <strong>Imágenes extraídas (Zonas: ${rois.length}):</strong>
+          </div>
+          <div class="roi-result-gallery">${mainGallery}</div>
+        </div>
+      `;
+      resultsDiv.style.display = 'block';
+    }
+
+    showToast('Imagen(es) extraída(s) correctamente');
+    
+  } catch (error) {
+    console.error('Error extracting image:', error);
+    alert('Error al extraer imagen: ' + error.message);
+  } finally {
+    document.getElementById('roi-modal-loading').style.display = 'none';
+  }
+}
+
+function downloadCroppedImage() {
+  const { lastCroppedImage, lastCroppedImages, imageIdx, currentRoi, selectedRois } = roiModalState;
+  const images = Array.isArray(lastCroppedImages) && lastCroppedImages.length > 0 ? lastCroppedImages : (lastCroppedImage ? [lastCroppedImage] : []);
+  if (images.length === 0) return;
+
+  const rois = selectedRois.length > 0 ? selectedRois : (currentRoi ? [{ ...currentRoi }] : []);
+  images.forEach((img, i) => {
+    const r = rois[i] || rois[0] || currentRoi || { width: 0, height: 0 };
+    const filename = `roi_imagen${imageIdx + 1}_${r.width}x${r.height}_${Date.now()}_${i + 1}.png`;
+    downloadImageFromSrc(img, filename);
+  });
+}
+
+function downloadImageFromSrc(dataUrl, filename) {
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('Imagen descargada: ' + filename);
+}
+
+function attachCroppedImage() {
+  const { lastCroppedImage, lastCroppedImages, imageIdx, currentRoi, selectedRois, lastExtractedPerZone } = roiModalState;
+  const images = Array.isArray(lastCroppedImages) && lastCroppedImages.length > 0 ? lastCroppedImages : (lastCroppedImage ? [lastCroppedImage] : []);
+  if (images.length === 0 || !state.currentResults) return;
+  
+  // Add cropped image to results
+  if (!state.currentResults._roi_extractions) {
+    state.currentResults._roi_extractions = [];
+  }
+
+  const now = new Date().toISOString();
+  const rois = selectedRois.length > 0 ? selectedRois : (currentRoi ? [{ ...currentRoi }] : []);
+  const modalText = document.getElementById('roi-modal-text').textContent;
+
+  images.forEach((img, i) => {
+    const r = rois[i] || rois[0] || currentRoi;
+    const per = Array.isArray(lastExtractedPerZone) ? lastExtractedPerZone[i] : null;
+    state.currentResults._roi_extractions.push({
+      source_image_idx: imageIdx,
+      roi: r ? { x: r.x, y: r.y, width: r.width, height: r.height } : { ...currentRoi },
+      text: per && typeof per.text === 'string' ? per.text : modalText,
+      cropped_image: img,
+      timestamp: now
+    });
+  });
+  
+  // Update the results in storage
+  if (state.selectedJobId) {
+    fetch(`${API_BASE}/jobs/${state.selectedJobId}/results`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: state.currentResults })
+    }).then(() => {
+      showToast(`Imagen(es) adjuntada(s) a los resultados (${images.length})`);
+    }).catch(err => {
+      console.error('Error saving:', err);
+      showToast('Error al guardar');
+    });
+  } else {
+    showToast(`Imagen(es) adjuntada(s) (guardado local) (${images.length})`);
+  }
 }
 
 // ===== EXPORT FUNCTIONS =====
@@ -1296,155 +2405,154 @@ async function exportToExcel() {
     workbook.creator = 'FilesToData';
     workbook.created = new Date();
 
+    const CELESTE = 'FFDEEAF6';
+    const BORDER_STYLE = { style: 'thin', color: { argb: 'FF000000' } };
+    const BORDER_ALL = { top: BORDER_STYLE, bottom: BORDER_STYLE, left: BORDER_STYLE, right: BORDER_STYLE };
+
     const safeSheetName = (name) => {
-      const cleaned = String(name || 'Sheet')
-        .replace(/[\\/?*:[\]]/g, ' ')
-        .trim();
+      const cleaned = String(name || 'Sheet').replace(/[\\/?*:[\]]/g, ' ').trim();
       return cleaned.slice(0, 31) || 'Sheet';
     };
 
-    const flattenObject = (obj, prefix = '') => {
-      let out = {};
-      if (!obj || typeof obj !== 'object') return out;
-      for (const key of Object.keys(obj)) {
-        if (key.startsWith('_')) continue;
-        const val = obj[key];
-        const newKey = prefix ? `${prefix}.${key}` : key;
-        if (val && typeof val === 'object' && !Array.isArray(val)) {
-          Object.assign(out, flattenObject(val, newKey));
-        } else if (!Array.isArray(val)) {
-          out[newKey] = val;
-        }
-      }
-      return out;
-    };
+    // ALWAYS use single-sheet J.Crew Sewing Worksheet format
+    // This is the required format for all exports from this application
+    let fileName = 'document';
+    
+    // Debug: log the full results structure
+    console.log('Full results for export:', JSON.stringify(results, null, 2).substring(0, 5000));
 
-    const addKeyValueSheet = (sheetName, obj) => {
-      const ws = workbook.addWorksheet(safeSheetName(sheetName));
-      ws.columns = [{ width: 50 }, { width: 80 }];
-      ws.addRow(['Field', 'Value']);
-      ws.getRow(1).font = { bold: true };
-      ws.views = [{ state: 'frozen', ySplit: 1 }];
-
-      const flat = flattenObject(obj);
-      for (const [k, v] of Object.entries(flat)) {
-        const valueStr = v === null || v === undefined ? '' : (typeof v === 'string' ? v : JSON.stringify(v));
-        ws.addRow([k, valueStr]);
-      }
-
-      ws.getColumn(1).alignment = { vertical: 'top', wrapText: true };
-      ws.getColumn(2).alignment = { vertical: 'top', wrapText: true };
-      return ws;
-    };
-
-    const addTableSheet = (sheetName, arr) => {
-      const rows = Array.isArray(arr) ? arr : [];
-      const ws = workbook.addWorksheet(safeSheetName(sheetName));
-      if (rows.length === 0) {
-        ws.addRow(['No data']);
-        return ws;
-      }
-
-      // Build headers from union of keys
-      const headersSet = new Set();
-      for (const r of rows) {
-        if (r && typeof r === 'object') {
-          Object.keys(r).filter(k => !k.startsWith('_')).forEach(k => headersSet.add(k));
-        }
-      }
-      const headers = Array.from(headersSet);
-      ws.addRow(headers);
-      ws.getRow(1).font = { bold: true };
-      ws.views = [{ state: 'frozen', ySplit: 1 }];
-
-      for (const r of rows) {
-        const rowValues = headers.map(h => {
-          const v = r ? r[h] : '';
-          if (v === null || v === undefined) return '';
-          if (typeof v === 'object') return JSON.stringify(v);
-          return v;
-        });
-        ws.addRow(rowValues);
-      }
-
-      ws.columns = headers.map(h => ({ header: h, key: h, width: Math.min(40, Math.max(12, h.length + 2)) }));
-      ws.eachRow((row, rowNumber) => {
-        row.alignment = { vertical: 'top', wrapText: true };
-        if (rowNumber === 1) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-      });
-      return ws;
-    };
-
-    // Summary
-    addKeyValueSheet('Summary', results);
-
-    // Document pages (if present)
-    if (Array.isArray(results.pages)) {
-      results.pages.forEach((page, idx) => {
-        addKeyValueSheet(`Page ${idx + 1}`, page?.data || {});
-
-        const sw = page?.data?.sewing_worksheet || {};
-        if (Array.isArray(sw.quantity_lines)) addTableSheet(`P${idx + 1} Quantity`, sw.quantity_lines);
-        if (Array.isArray(sw.measurement_rows)) addTableSheet(`P${idx + 1} Measurements`, sw.measurement_rows);
-      });
+    if (window.exportToExcelSewingWorksheet) {
+      // Use the single-sheet J.Crew template export (ONE SHEET ONLY - no additional sheets)
+      fileName = await window.exportToExcelSewingWorksheet(results, workbook);
+      // DO NOT add any more sheets - it must be ONE SHEET ONLY
     } else {
-      // Known tables for product_factura / generic document
-      if (Array.isArray(results.table_of_contents)) addTableSheet('Table of contents', results.table_of_contents);
-      if (Array.isArray(results.bom_product_materials)) addTableSheet('BOM materials', results.bom_product_materials);
-      if (Array.isArray(results.bom_product_impressions_wide)) addTableSheet('BOM impressions', results.bom_product_impressions_wide);
-      if (Array.isArray(results.measurements_plus_wide)) addTableSheet('Measurements (plus)', results.measurements_plus_wide);
-      if (Array.isArray(results.measurements_regular_wide)) addTableSheet('Measurements (regular)', results.measurements_regular_wide);
-      if (Array.isArray(results.product_details_construction)) addTableSheet('Construction details', results.product_details_construction);
-      if (Array.isArray(results.items)) addTableSheet('Items', results.items);
-    }
+      // Fallback to generic export (multiple sheets)
+      const flattenObject = (obj, prefix = '') => {
+        let out = {};
+        if (!obj || typeof obj !== 'object') return out;
+        for (const key of Object.keys(obj)) {
+          if (key.startsWith('_')) continue;
+          const val = obj[key];
+          const newKey = prefix ? `${prefix}.${key}` : key;
+          if (val && typeof val === 'object' && !Array.isArray(val)) {
+            Object.assign(out, flattenObject(val, newKey));
+          } else if (!Array.isArray(val)) {
+            out[newKey] = val;
+          }
+        }
+        return out;
+      };
 
-    // Images sheet
-    const images = Array.isArray(results._extracted_images) ? results._extracted_images : [];
-    if (images.length) {
-      const wsImg = workbook.addWorksheet('Images');
-      wsImg.columns = [
-        { width: 8 },  // Page
-        { width: 8 },  // Index
-        { width: 10 }, // Width
-        { width: 10 }, // Height
-        { width: 10 }, // Format
-        { width: 60 }, // OCR text
-        { width: 45 }, // Image
-      ];
-      wsImg.addRow(['Page', 'Index', 'Width', 'Height', 'Format', 'OCR text', 'Image']);
-      wsImg.getRow(1).font = { bold: true };
-      wsImg.views = [{ state: 'frozen', ySplit: 1 }];
+      const addKeyValueSheet = (sheetName, obj) => {
+        const ws = workbook.addWorksheet(safeSheetName(sheetName));
+        ws.columns = [{ width: 50 }, { width: 80 }];
+        ws.addRow(['Field', 'Value']);
+        ws.getRow(1).font = { bold: true };
+        ws.getRow(1).eachCell(cell => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
+          cell.border = BORDER_ALL;
+        });
+        ws.views = [{ state: 'frozen', ySplit: 1 }];
 
-      let rowCursor = 2;
-      for (const img of images) {
-        const dataUrl = img?.data_url || '';
-        const match = /^data:image\/(png|jpe?g|webp|bmp|gif);base64,(.+)$/i.exec(dataUrl);
-        const ext = match ? match[1].toLowerCase().replace('jpg', 'jpeg') : 'png';
-        const base64 = match ? match[2] : null;
+        const flat = flattenObject(obj);
+        for (const [k, v] of Object.entries(flat)) {
+          const valueStr = v === null || v === undefined ? '' : (typeof v === 'string' ? v : JSON.stringify(v));
+          const row = ws.addRow([k, valueStr]);
+          row.eachCell(cell => { cell.border = BORDER_ALL; });
+        }
+        return ws;
+      };
 
-        wsImg.addRow([
-          img?.page ?? '',
-          img?.index ?? '',
-          img?.width ?? '',
-          img?.height ?? '',
-          img?.format ?? ext,
-          img?.ocr_text ?? '',
-          '',
-        ]);
-        wsImg.getRow(rowCursor).height = 160;
-
-        if (base64) {
-          const imageId = workbook.addImage({ base64, extension: ext });
-          // Place image in column 7 (Image). ExcelJS uses 0-based col/row.
-          wsImg.addImage(imageId, {
-            tl: { col: 6, row: rowCursor - 1 },
-            ext: { width: 300, height: 200 },
-          });
+      const addTableSheet = (sheetName, arr) => {
+        const rows = Array.isArray(arr) ? arr : [];
+        const ws = workbook.addWorksheet(safeSheetName(sheetName));
+        if (rows.length === 0) {
+          ws.addRow(['No data']);
+          return ws;
         }
 
-        rowCursor += 1;
+        const headersSet = new Set();
+        for (const r of rows) {
+          if (r && typeof r === 'object') {
+            Object.keys(r).filter(k => !k.startsWith('_')).forEach(k => headersSet.add(k));
+          }
+        }
+        const headers = Array.from(headersSet);
+        const headerRow = ws.addRow(headers);
+        headerRow.font = { bold: true };
+        headerRow.eachCell(cell => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
+          cell.border = BORDER_ALL;
+        });
+        ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+        for (const r of rows) {
+          const rowValues = headers.map(h => {
+            const v = r ? r[h] : '';
+            if (v === null || v === undefined) return '';
+            if (typeof v === 'object') return JSON.stringify(v);
+            return v;
+          });
+          const dataRow = ws.addRow(rowValues);
+          dataRow.eachCell(cell => { cell.border = BORDER_ALL; });
+        }
+
+        ws.columns = headers.map(h => ({ header: h, key: h, width: Math.min(40, Math.max(12, h.length + 2)) }));
+        return ws;
+      };
+
+      addKeyValueSheet('Summary', results);
+
+      if (Array.isArray(results.pages)) {
+        results.pages.forEach((page, idx) => {
+          addKeyValueSheet(`Page ${idx + 1}`, page?.data || {});
+          const sw = page?.data?.sewing_worksheet || {};
+          if (Array.isArray(sw.quantity_lines)) addTableSheet(`P${idx + 1} Quantity`, sw.quantity_lines);
+          if (Array.isArray(sw.measurement_rows)) addTableSheet(`P${idx + 1} Measurements`, sw.measurement_rows);
+        });
+      } else {
+        if (Array.isArray(results.table_of_contents)) addTableSheet('Table of contents', results.table_of_contents);
+        if (Array.isArray(results.bom_product_materials)) addTableSheet('BOM materials', results.bom_product_materials);
+        if (Array.isArray(results.bom_product_impressions_wide)) addTableSheet('BOM impressions', results.bom_product_impressions_wide);
+        if (Array.isArray(results.measurements_plus_wide)) addTableSheet('Measurements (plus)', results.measurements_plus_wide);
+        if (Array.isArray(results.measurements_regular_wide)) addTableSheet('Measurements (regular)', results.measurements_regular_wide);
+        if (Array.isArray(results.product_details_construction)) addTableSheet('Construction details', results.product_details_construction);
+        if (Array.isArray(results.items)) addTableSheet('Items', results.items);
       }
-      wsImg.getColumn(6).alignment = { vertical: 'top', wrapText: true };
+
+      // Images sheet - ONLY for non-sewing worksheet exports
+      const images = Array.isArray(results._extracted_images) ? results._extracted_images : [];
+      if (images.length) {
+        const wsImg = workbook.addWorksheet('Images');
+        wsImg.columns = [
+          { width: 8 }, { width: 8 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 60 }, { width: 45 },
+        ];
+        const imgHeaderRow = wsImg.addRow(['Page', 'Index', 'Width', 'Height', 'Format', 'OCR text', 'Image']);
+        imgHeaderRow.font = { bold: true };
+        imgHeaderRow.eachCell(cell => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
+          cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+        });
+        wsImg.views = [{ state: 'frozen', ySplit: 1 }];
+
+        let rowCursor = 2;
+        for (const img of images) {
+          const dataUrl = img?.data_url || '';
+          const match = /^data:image\/(png|jpe?g|webp|bmp|gif);base64,(.+)$/i.exec(dataUrl);
+          const ext = match ? match[1].toLowerCase().replace('jpg', 'jpeg') : 'png';
+          const base64 = match ? match[2] : null;
+
+          wsImg.addRow([img?.page ?? '', img?.index ?? '', img?.width ?? '', img?.height ?? '', img?.format ?? ext, img?.ocr_text ?? '', '']);
+          wsImg.getRow(rowCursor).height = 160;
+
+          if (base64) {
+            const imageId = workbook.addImage({ base64, extension: ext });
+            wsImg.addImage(imageId, { tl: { col: 6, row: rowCursor - 1 }, ext: { width: 300, height: 200 } });
+          }
+          rowCursor += 1;
+        }
+        wsImg.getColumn(6).alignment = { vertical: 'top', wrapText: true };
+      }
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -1452,7 +2560,7 @@ async function exportToExcel() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `document_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    link.download = `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1468,29 +2576,52 @@ async function exportToExcel() {
 window.exportToPDF = exportToPDF;
 window.exportToExcel = exportToExcel;
 
+async function parseJsonOrThrow(res, method, path) {
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  const text = await res.text();
+
+  if (!res.ok) {
+    throw new Error(`${method} ${path} -> ${res.status} ${res.statusText}\n${text.slice(0, 500)}`);
+  }
+
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      `${method} ${path} -> Expected JSON but got '${contentType || 'unknown'}'. ` +
+      `This usually means apiBase is wrong (pointing to the frontend) or missing '/api'.\n` +
+      `${text.slice(0, 500)}`
+    );
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error(`${method} ${path} -> Invalid JSON\n${text.slice(0, 500)}`);
+  }
+}
+
 async function apiGet(path) {
-  const res = await fetch(`${API_BASE}${path}`);
-  if (!res.ok) throw new Error(`GET ${path} -> ${res.status}`);
-  return res.json();
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'ngrok-skip-browser-warning': 'true' },
+  });
+  return parseJsonOrThrow(res, 'GET', path);
 }
 
 async function apiPostForm(path, formData) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
+    headers: { 'ngrok-skip-browser-warning': 'true' },
     body: formData,
   });
-  if (!res.ok) throw new Error(`POST ${path} -> ${res.status}`);
-  return res.json();
+  return parseJsonOrThrow(res, 'POST', path);
 }
 
 async function apiPutJson(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`PUT ${path} -> ${res.status}`);
-  return res.json();
+  return parseJsonOrThrow(res, 'PUT', path);
 }
 
 function showToast(message) {

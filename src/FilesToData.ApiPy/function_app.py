@@ -22,10 +22,10 @@ def _utc_now_iso() -> str:
 
 
 def _cors_headers() -> Dict[str, str]:
-    origin = os.getenv("CORS_ALLOWED_ORIGIN") or "http://localhost:3000"
+    origin = (os.getenv("CORS_ALLOWED_ORIGIN") or "").strip() or "*"
     headers = {
         "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type,Authorization",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization,ngrok-skip-browser-warning",
         "Access-Control-Max-Age": "86400",
     }
     if origin.strip() == "*":
@@ -244,6 +244,312 @@ def update_job_results(req: func.HttpRequest) -> func.HttpResponse:
     supabase.upsert_results(str(job_id), data)
 
     return _json_response({"message": "Results updated successfully", "job_id": str(job_id)})
+
+
+@app.route(route="ocr/roi", methods=["POST", "OPTIONS"])
+def ocr_roi_handler(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    OCR with Region of Interest (ROI).
+    
+    Accepts multipart form data with:
+    - file: Image file (JPEG, PNG, etc.)
+    - x: Left coordinate of ROI
+    - y: Top coordinate of ROI  
+    - width: Width of ROI
+    - height: Height of ROI
+    - use_claude: (optional) "true" to use Claude Vision, otherwise Tesseract
+    
+    Or JSON body with:
+    - image_base64: Base64 encoded image
+    - x, y, width, height: ROI coordinates
+    - use_claude: (optional) boolean
+    """
+    if req.method == "OPTIONS":
+        return _cors_preflight()
+
+    try:
+        image_bytes: Optional[bytes] = None
+        x = y = width = height = 0
+        use_claude = False
+
+        content_type = req.headers.get("content-type", "").lower()
+
+        if "multipart/form-data" in content_type:
+            # Parse multipart form
+            file_bytes, file_name = _parse_multipart_file(req)
+            if not file_bytes:
+                return _bad_request("No image file provided")
+            image_bytes = file_bytes
+
+            # Get ROI params from form fields or query params
+            try:
+                x = int(req.params.get("x") or req.form.get("x") or 0)
+                y = int(req.params.get("y") or req.form.get("y") or 0)
+                width = int(req.params.get("width") or req.form.get("width") or 0)
+                height = int(req.params.get("height") or req.form.get("height") or 0)
+            except (ValueError, TypeError):
+                return _bad_request("Invalid ROI coordinates. Must be integers.")
+
+            use_claude_str = (req.params.get("use_claude") or req.form.get("use_claude") or "").lower()
+            use_claude = use_claude_str in ("true", "1", "yes")
+
+        elif "application/json" in content_type:
+            # Parse JSON body
+            try:
+                body = req.get_json()
+            except Exception:
+                return _bad_request("Invalid JSON body")
+
+            image_b64 = body.get("image_base64") or body.get("image")
+            if not image_b64:
+                return _bad_request("No image_base64 provided in JSON body")
+
+            # Remove data URL prefix if present
+            if "," in image_b64:
+                image_b64 = image_b64.split(",", 1)[1]
+
+            try:
+                import base64
+                image_bytes = base64.b64decode(image_b64)
+            except Exception:
+                return _bad_request("Invalid base64 image data")
+
+            try:
+                x = int(body.get("x", 0))
+                y = int(body.get("y", 0))
+                width = int(body.get("width", 0))
+                height = int(body.get("height", 0))
+            except (ValueError, TypeError):
+                return _bad_request("Invalid ROI coordinates. Must be integers.")
+
+            use_claude = body.get("use_claude", False) is True
+
+        else:
+            return _bad_request("Content-Type must be multipart/form-data or application/json")
+
+        if not image_bytes:
+            return _bad_request("No image data provided")
+
+        if width <= 0 or height <= 0:
+            return _bad_request("ROI width and height must be positive integers")
+
+        # Perform OCR on ROI
+        result = ocr_service.ocr_region(
+            image_bytes=image_bytes,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            use_claude=use_claude,
+        )
+
+        if result.get("error"):
+            return _json_response({"error": result["error"], "roi": result["roi"]}, status_code=400)
+
+        return _json_response(result)
+
+    except Exception as ex:
+        logger.exception("Error in OCR ROI handler")
+        return _json_response({"error": str(ex)}, status_code=500)
+
+
+@app.route(route="ocr/roi/batch", methods=["POST", "OPTIONS"])
+def ocr_roi_batch_handler(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    OCR multiple regions from a single image.
+    
+    JSON body:
+    - image_base64: Base64 encoded image
+    - regions: Array of {x, y, width, height, name?}
+    - use_claude: (optional) boolean
+    """
+    if req.method == "OPTIONS":
+        return _cors_preflight()
+
+    try:
+        try:
+            body = req.get_json()
+        except Exception:
+            return _bad_request("Invalid JSON body")
+
+        image_b64 = body.get("image_base64") or body.get("image")
+        if not image_b64:
+            return _bad_request("No image_base64 provided")
+
+        # Remove data URL prefix if present
+        if "," in image_b64:
+            image_b64 = image_b64.split(",", 1)[1]
+
+        try:
+            import base64
+            image_bytes = base64.b64decode(image_b64)
+        except Exception:
+            return _bad_request("Invalid base64 image data")
+
+        regions = body.get("regions", [])
+        if not isinstance(regions, list) or len(regions) == 0:
+            return _bad_request("'regions' must be a non-empty array")
+
+        use_claude = body.get("use_claude", False) is True
+
+        results = ocr_service.ocr_multiple_regions(
+            image_bytes=image_bytes,
+            regions=regions,
+            use_claude=use_claude,
+        )
+
+        return _json_response({"results": results, "count": len(results)})
+
+    except Exception as ex:
+        logger.exception("Error in OCR ROI batch handler")
+        return _json_response({"error": str(ex)}, status_code=500)
+
+
+@app.route(route="ocr/full", methods=["POST", "OPTIONS"])
+def ocr_full_handler(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    OCR full image (no ROI cropping).
+    
+    Accepts multipart form data with:
+    - file: Image file
+    - use_claude: (optional) "true" to use Claude Vision
+    
+    Or JSON body with:
+    - image_base64: Base64 encoded image
+    - use_claude: (optional) boolean
+    """
+    if req.method == "OPTIONS":
+        return _cors_preflight()
+
+    try:
+        image_bytes: Optional[bytes] = None
+        use_claude = False
+
+        content_type = req.headers.get("content-type", "").lower()
+
+        if "multipart/form-data" in content_type:
+            file_bytes, file_name = _parse_multipart_file(req)
+            if not file_bytes:
+                return _bad_request("No image file provided")
+            image_bytes = file_bytes
+            use_claude_str = (req.params.get("use_claude") or "").lower()
+            use_claude = use_claude_str in ("true", "1", "yes")
+
+        elif "application/json" in content_type:
+            try:
+                body = req.get_json()
+            except Exception:
+                return _bad_request("Invalid JSON body")
+
+            image_b64 = body.get("image_base64") or body.get("image")
+            if not image_b64:
+                return _bad_request("No image_base64 provided")
+
+            if "," in image_b64:
+                image_b64 = image_b64.split(",", 1)[1]
+
+            try:
+                import base64
+                image_bytes = base64.b64decode(image_b64)
+            except Exception:
+                return _bad_request("Invalid base64 image data")
+
+            use_claude = body.get("use_claude", False) is True
+
+        else:
+            return _bad_request("Content-Type must be multipart/form-data or application/json")
+
+        if not image_bytes:
+            return _bad_request("No image data provided")
+
+        # Get image dimensions
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(image_bytes))
+        img_width, img_height = img.size
+
+        # OCR full image (ROI = entire image)
+        result = ocr_service.ocr_region(
+            image_bytes=image_bytes,
+            x=0,
+            y=0,
+            width=img_width,
+            height=img_height,
+            use_claude=use_claude,
+        )
+
+        # Don't include full cropped image in response (it's the same as input)
+        result.pop("cropped_image", None)
+        result["image_size"] = {"width": img_width, "height": img_height}
+
+        if result.get("error"):
+            return _json_response({"error": result["error"]}, status_code=400)
+
+        return _json_response(result)
+
+    except Exception as ex:
+        logger.exception("Error in OCR full handler")
+        return _json_response({"error": str(ex)}, status_code=500)
+
+
+@app.route(route="ocr/detect-regions", methods=["POST", "OPTIONS"])
+def ocr_detect_regions_handler(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Auto-detect text AND visual regions in an image.
+    Returns bounding boxes for text blocks, shapes, boxes, and illustrations.
+    
+    JSON body:
+    - image_base64: Base64 encoded image
+    - detect_visual: (optional) boolean, default True - also detect visual regions
+    """
+    if req.method == "OPTIONS":
+        return _cors_preflight()
+
+    try:
+        try:
+            body = req.get_json()
+        except Exception:
+            return _bad_request("Invalid JSON body")
+
+        image_b64 = body.get("image_base64") or body.get("image")
+        if not image_b64:
+            return _bad_request("No image_base64 provided")
+
+        # Remove data URL prefix if present
+        if "," in image_b64:
+            image_b64 = image_b64.split(",", 1)[1]
+
+        try:
+            import base64
+            image_bytes = base64.b64decode(image_b64)
+        except Exception:
+            return _bad_request("Invalid base64 image data")
+
+        detect_visual = body.get("detect_visual", True)
+        
+        if detect_visual:
+            # Detect both text and visual regions
+            result = ocr_service.detect_all_regions(image_bytes)
+        else:
+            # Only detect text regions (legacy behavior)
+            from PIL import Image
+            import io
+            img = Image.open(io.BytesIO(image_bytes))
+            img_width, img_height = img.size
+            regions = ocr_service.detect_text_regions(image_bytes)
+            result = {
+                "regions": regions,
+                "count": len(regions),
+                "text_count": len(regions),
+                "visual_count": 0,
+                "image_size": {"width": img_width, "height": img_height}
+            }
+
+        return _json_response(result)
+
+    except Exception as ex:
+        logger.exception("Error in OCR detect regions handler")
+        return _json_response({"error": str(ex)}, status_code=500)
 
 
 @app.function_name(name="ProcessDocumentJob")

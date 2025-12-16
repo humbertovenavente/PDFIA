@@ -1,0 +1,13 @@
+name: sam2-refine-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - numpy
+      - pillow
+      - opencv-python-headless
+      - requests
+      - azureml-inference-server-http
+      - git+https://github.com/facebookresearch/sam2.git

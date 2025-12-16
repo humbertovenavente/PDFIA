@@ -20,7 +20,7 @@ High‑level flow (current setup):
                     │ HTTP (fetch)
                     ▼
 ┌───────────────────────────────────────────────┐
-│      Azure Functions (.NET  10 lated)       │
+│      Azure Functions (python) │
 │  HTTP triggers:                              │
 │    - POST /api/jobs                          │
 │    - GET  /api/jobs                          │
@@ -292,11 +292,74 @@ If `CLAUDE_API_KEY` is not configured, `AiService` stays in stub mode.
 
 ---
 
+## Template System (v2.8)
+
+The system now supports **multiple template types** for sewing worksheets and product specifications. When a PDF is uploaded, the system automatically detects the template type and extracts ALL data accordingly.
+
+### Supported Template Types
+
+| Template Type | Detection Patterns | Description |
+|--------------|-------------------|-------------|
+| `sewing_worksheet_jcrew` | "ORDEN DE TRABAJO DE COSTURA", "SEWING WORKSHEET" | Standard J.Crew 8-section format |
+| `sewing_worksheet_korean` | "봉제 작업 지시서/Orden de Trabajo", "정작지" | Korean/Spanish hybrid style |
+| `sewing_worksheet_target` | "TARGET MEN'S", "TARGET WOMEN'S" | Target brand format |
+| `sewing_worksheet_express` | "EXPRESS FILE" | Express brand format |
+| `sewing_worksheet_af` | "A&F F#", "ABERCROMBIE" | Abercrombie & Fitch format |
+| `sewing_worksheet_urban` | "URBAN OUTFITTERS", "MODAS WIZ" | Urban Outfitters format |
+| `sewing_worksheet_kontoor` | "KONTOOR", "WRANGLER" | Kontoor/Wrangler format |
+| `sewing_worksheet_lucky` | "LUCKY BRAND" | Lucky Brand format |
+| `sewing_worksheet_vineyard` | "VINEYARD VINES" | Vineyard Vines format |
+| `product_spec` | "PRODUCT SPEC", "TECH PACK", "PID-" | Product specification / Tech Pack |
+
+### Data Extraction
+
+The system extracts the following data sections (when present):
+
+- **Header**: Contact, date, requested by, work plant
+- **Order Info**: File #, buyer, style, product, season, quantity, ship date, cost
+- **Fabric Info**: Yarn, fabric, width, weight, rib, yield
+- **Order Procedure**: Production process text
+- **Quantity Lines**: Style, PO, color, sizes (XXS-XXXL, 1X-4X), totals
+- **Cutting Details**: Notes and instructions
+- **Sewing Details**: Notes and instructions
+- **Measurements**: Points of measure with tolerances and size values
+- **Labels/Packing Info**: Folding size, hangtag, pieces per box
+- **Yield Info**: Body and rib consumption
+- **Important Notes**: Any additional notes or instructions
+- **Additional Tables**: Any other tables found in the document
+
+### Excel Export
+
+The Excel export generates a single-sheet document in the J.Crew Sewing Worksheet format with:
+- Blue (celeste) headers for section titles and labels
+- White cells for data values
+- Yellow highlighting for important information
+- All 8+ sections properly formatted
+- Support for additional notes and tables
+
+### Frontend Files
+
+| File | Description |
+|------|-------------|
+| `templateDefinitions.js` | Template definitions and field mappings |
+| `exportExcel.js` | Excel export with J.Crew format |
+| `app.js` | Main application with editable tables |
+
+### Backend Files
+
+| File | Description |
+|------|-------------|
+| `services/template_definitions.py` | Template detection patterns and section definitions |
+| `services/template_extractor.py` | Prompt building and data normalization |
+| `services/ai_service.py` | Claude API integration with template-based extraction |
+
+---
+
 ## Current Limitations & Next Steps
 
 - Jobs and files are stored **only in memory** (Supabase/Postgres not yet wired).
 - OCR is optional and falls back to placeholder text if the external API is not configured or returns an error.
-- AI is currently **stubbed**; to use real AI (Claude Opus or similar), `AiService` must be updated to call the provider's HTTP API using `CLAUDE_API_KEY` (or equivalent).
+- AI uses Claude API for extraction; requires `CLAUDE_API_KEY` environment variable.
 
-Despite these limitations, the full end‑to‑end pipeline is in place and working with simulated data, allowing easy future upgrades to real OCR and AI backends.
+Despite these limitations, the full end‑to‑end pipeline is in place and working, allowing easy future upgrades to real OCR and AI backends.
 

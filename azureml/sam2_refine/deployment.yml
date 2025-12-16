@@ -1,0 +1,14 @@
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.schema.json
+name: blue
+endpoint_name: garment-sam2-refine
+code_configuration:
+  code: ./
+  scoring_script: score.py
+environment: azureml:garment-sam2-refine-env@latest
+environment_variables:
+  SAM2_CHECKPOINT_URL: https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
+  SAM2_MODEL_CFG: configs/sam2.1/sam2.1_hiera_l.yaml
+instance_type: Standard_NC4as_T4_v3
+instance_count: 1
+request_settings:
+  request_timeout_ms: 180000
