@@ -1191,6 +1191,107 @@ async function generateModifiedPdf() {
       console.log('Text replacement applied at', { pdfX, pdfY, pdfWidth, pdfHeight, fontSize, lineCount });
     }
   }
+
+  // Apply table blocks (always render table if it has a region)
+  for (const block of editorState.contentBlocks) {
+    if (!block.region) continue;
+    if (block.type !== 'table' || !block.table || !Array.isArray(block.table.rows)) continue;
+
+    const pageIndex = block.page - 1;
+    if (pageIndex < 0 || pageIndex >= pages.length) continue;
+
+    const page = pages[pageIndex];
+    const { width, height } = page.getSize();
+
+    const pdfJsPage = await editorState.pdfDoc.getPage(block.page);
+    const viewport = pdfJsPage.getViewport({ scale: block.region.scale });
+    const scaleX = width / viewport.width;
+    const scaleY = height / viewport.height;
+
+    const pdfX = block.region.x * scaleX;
+    const pdfY = height - (block.region.y * scaleY) - (block.region.height * scaleY);
+    const pdfWidth = block.region.width * scaleX;
+    const pdfHeight = block.region.height * scaleY;
+
+    const rows = block.table.rows || [];
+    const rowCount = Math.max(rows.length, 1);
+    const colCount = Math.max(
+      1,
+      ...rows.map((r) => (Array.isArray(r) ? r.length : 0))
+    );
+
+    const cellW = pdfWidth / colCount;
+    const cellH = pdfHeight / rowCount;
+
+    // White background to cover the original table region
+    page.drawRectangle({
+      x: pdfX,
+      y: pdfY,
+      width: pdfWidth,
+      height: pdfHeight,
+      color: rgb(1, 1, 1),
+    });
+
+    // Draw grid lines
+    const gridColor = rgb(0.75, 0.75, 0.75);
+    const gridThickness = Math.max(0.5, 0.8 * Math.min(scaleX, scaleY));
+
+    // Vertical lines
+    for (let c = 0; c <= colCount; c++) {
+      const x = pdfX + c * cellW;
+      page.drawLine({
+        start: { x, y: pdfY },
+        end: { x, y: pdfY + pdfHeight },
+        thickness: gridThickness,
+        color: gridColor,
+      });
+    }
+
+    // Horizontal lines
+    for (let r = 0; r <= rowCount; r++) {
+      const y = pdfY + r * cellH;
+      page.drawLine({
+        start: { x: pdfX, y },
+        end: { x: pdfX + pdfWidth, y },
+        thickness: gridThickness,
+        color: gridColor,
+      });
+    }
+
+    // Cell text
+    const baseFontSize = Math.min(Math.max(cellH * 0.45, 6), 12);
+    const pad = Math.max(2, cellW * 0.03);
+
+    for (let r = 0; r < rowCount; r++) {
+      for (let c = 0; c < colCount; c++) {
+        const raw = (rows[r] && rows[r][c]) != null ? String(rows[r][c]) : '';
+        const text = raw.trim();
+        if (!text) continue;
+
+        const cellX = pdfX + c * cellW;
+        // PDF y origin bottom; row 0 should be top row
+        const cellTopY = pdfY + pdfHeight - r * cellH;
+        const textY = cellTopY - baseFontSize - pad;
+        let fontSize = baseFontSize;
+
+        const availableW = Math.max(1, cellW - pad * 2);
+        const measuredW = font.widthOfTextAtSize(text, fontSize);
+        if (measuredW > availableW) {
+          fontSize = Math.max(5, fontSize * (availableW / measuredW));
+        }
+
+        page.drawText(text, {
+          x: cellX + pad,
+          y: textY,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
+      }
+    }
+
+    console.log('Table rendered for block', block.id, 'at', { pdfX, pdfY, pdfWidth, pdfHeight, rowCount, colCount });
+  }
   
   // Apply annotations to each page
   for (let pageNum = 1; pageNum <= pages.length; pageNum++) {
