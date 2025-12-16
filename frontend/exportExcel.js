@@ -251,7 +251,7 @@ async function exportToExcelSewingWorksheet(results, workbook) {
 
   // ROW 1: TITLE
   ws.mergeCells(row, 1, row, 17);
-  ws.getCell(row, 1).value = 'ORDEN DE TRABAJO DE COSTURA/ SEWING WORKSHEET/ 봉제 작업지시서';
+  ws.getCell(row, 1).value = 'SEWING WORKSHEET';
   ws.getCell(row, 1).font = { bold: true, size: 16 };
   ws.getCell(row, 1).alignment = { horizontal: 'center', vertical: 'middle' };
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
@@ -270,7 +270,7 @@ async function exportToExcelSewingWorksheet(results, workbook) {
   applyBorder(ws, 4, 5, row);
   
   ws.mergeCells(row, 6, row, 7);
-  ws.getCell(row, 6).value = 'FECHA';
+  ws.getCell(row, 6).value = 'DATE';
   ws.getCell(row, 6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 6, 7, row);
   
@@ -295,7 +295,7 @@ async function exportToExcelSewingWorksheet(results, workbook) {
 
   // ROW 3: SOLICITADO POR / PLANTA
   ws.mergeCells(row, 1, row, 2);
-  ws.getCell(row, 1).value = 'SOLICITADO POR';
+  ws.getCell(row, 1).value = 'REQUESTED BY';
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 1, 2, row);
   
@@ -304,7 +304,7 @@ async function exportToExcelSewingWorksheet(results, workbook) {
   applyBorder(ws, 3, 5, row);
   
   ws.mergeCells(row, 6, row, 7);
-  ws.getCell(row, 6).value = 'PLANTA DE TRABAJO';
+  ws.getCell(row, 6).value = 'WORK PLANT';
   ws.getCell(row, 6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 6, 7, row);
   
@@ -329,13 +329,13 @@ async function exportToExcelSewingWorksheet(results, workbook) {
 
   // Section 1 & 2 Headers
   ws.mergeCells(row, 1, row, 7);
-  ws.getCell(row, 1).value = '1. INFO. DEL ORDEN/ ORDER INFO./오더 정보';
+  ws.getCell(row, 1).value = '1. ORDER INFO';
   ws.getCell(row, 1).font = { bold: true };
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 1, 7, row);
   
   ws.mergeCells(row, 8, row, 15);
-  ws.getCell(row, 8).value = '2. INFO. DE TELA/ FABRIC INFO/ 원자재 정보';
+  ws.getCell(row, 8).value = '2. FABRIC INFO';
   ws.getCell(row, 8).font = { bold: true };
   ws.getCell(row, 8).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 8, 15, row);
@@ -385,14 +385,14 @@ async function exportToExcelSewingWorksheet(results, workbook) {
 
   // Section 3: Order Procedure
   ws.mergeCells(row, 1, row, 17);
-  ws.getCell(row, 1).value = '3. PROCESO DEL ORDEN/ ORDER PROCEDURE/오더 공정 순서';
+  ws.getCell(row, 1).value = '3. ORDER PROCEDURE';
   ws.getCell(row, 1).font = { bold: true };
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 1, 17, row);
   row++;
 
   ws.mergeCells(row, 1, row, 17);
-  ws.getCell(row, 1).value = sw.order_procedure || 'CORTE - COSTURA - EMPAQUE';
+  ws.getCell(row, 1).value = sw.order_procedure || 'CUT - SEW - PACK';
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: YELLOW } };
   ws.getCell(row, 1).font = { bold: true };
   ws.getCell(row, 1).alignment = { horizontal: 'center' };
@@ -401,7 +401,7 @@ async function exportToExcelSewingWorksheet(results, workbook) {
 
   // Section 4: Quantity
   ws.mergeCells(row, 1, row, 17);
-  ws.getCell(row, 1).value = '4. CANTIDAD POR ESTILO, COLOR & PO/ QTY PER STYLE, COLOR & PO/재단 정보';
+  ws.getCell(row, 1).value = '4. QTY PER STYLE, COLOR & PO';
   ws.getCell(row, 1).font = { bold: true };
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 1, 17, row);
@@ -488,7 +488,7 @@ async function exportToExcelSewingWorksheet(results, workbook) {
 
   // Section 5: Cutting Details
   ws.mergeCells(row, 1, row, 17);
-  ws.getCell(row, 1).value = '5. DETALLES DE CORTE/ CUTTING DETAIL/재단 작업 디테일';
+  ws.getCell(row, 1).value = '5. CUTTING DETAIL';
   ws.getCell(row, 1).font = { bold: true };
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 1, 17, row);
@@ -506,18 +506,18 @@ async function exportToExcelSewingWorksheet(results, workbook) {
 
   // Section 6: Sewing Details
   ws.mergeCells(row, 1, row, 17);
-  ws.getCell(row, 1).value = '6. DETALLES DE OPERACION/ SEWING DETAIL/봉제 작업 디테일';
+  ws.getCell(row, 1).value = '6. SEWING DETAIL';
   ws.getCell(row, 1).font = { bold: true };
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 1, 17, row);
   row++;
 
   ws.mergeCells(row, 1, row, 8);
-  ws.getCell(row, 1).value = 'DISEÑO/ DESIGN/제품 그림';
+  ws.getCell(row, 1).value = 'DESIGN';
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 1, 8, row);
   ws.mergeCells(row, 9, row, 17);
-  ws.getCell(row, 9).value = 'COSTURA/ SEWING/공정 디테일';
+  ws.getCell(row, 9).value = 'SEWING';
   ws.getCell(row, 9).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 9, 17, row);
   row++;
@@ -578,7 +578,7 @@ async function exportToExcelSewingWorksheet(results, workbook) {
 
   // Section 8: Labels/Packing
   ws.mergeCells(row, 1, row, 17);
-  ws.getCell(row, 1).value = '8. DETALLES DE ETIQUETAS Y ACABADO/ TRIM & PACKING DETAILS/부자재 및 완성 디테일';
+  ws.getCell(row, 1).value = '8. TRIM & PACKING DETAILS';
   ws.getCell(row, 1).font = { bold: true };
   ws.getCell(row, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CELESTE } };
   applyBorder(ws, 1, 17, row);

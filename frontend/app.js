@@ -264,7 +264,7 @@ function renderSewingWorksheetPage(page) {
   const pageIdx = (page.page_number || 1) - 1;
   const basePath = `pages[${pageIdx}].data.sewing_worksheet`;
 
-  const title = 'ORDEN DE TRABAJO DE COSTURA/ SEWING WORKSHEET/ 봉제 작업지시서';
+  const title = 'SEWING WORKSHEET';
 
   const processText = sw.order_procedure;
   const cutNotes = sw.order_procedure_notes || sw.cutting_detail_notes;
@@ -318,51 +318,51 @@ function renderSewingWorksheetPage(page) {
         <div class="sheet-title">${escapeHtml(title)}</div>
 
         <div class="sheet-grid">
-          ${sheetField('CONTACTO/CONTACT/담당자', header.contact, `${basePath}.header.contact`)}
-          ${sheetField('FECHA', header.document_date, `${basePath}.header.document_date`)}
-          ${sheetField('SOLICITADO POR', header.requested_by, `${basePath}.header.requested_by`)}
-          ${sheetField('PLANTA DE TRABAJO', header.work_plant, `${basePath}.header.work_plant`)}
+          ${sheetField('CONTACT', header.contact, `${basePath}.header.contact`)}
+          ${sheetField('DATE', header.document_date, `${basePath}.header.document_date`)}
+          ${sheetField('REQUESTED BY', header.requested_by, `${basePath}.header.requested_by`)}
+          ${sheetField('WORK PLANT', header.work_plant, `${basePath}.header.work_plant`)}
         </div>
 
-        <div class="sheet-section">1. INFO. DEL ORDEN/ ORDER INFO./오더 정보</div>
+        <div class="sheet-section">1. ORDER INFO</div>
         <div class="sheet-grid sheet-grid-2col">
           <div class="sheet-col">
             ${sheetField('#FILE', orderInfo.file, `${basePath}.order_info.file`)}
-            ${sheetField('CLIENTE/BUYER/바이어', orderInfo.buyer, `${basePath}.order_info.buyer`)}
-            ${sheetField('STYLE #/ # ESTILO', orderInfo.style, `${basePath}.order_info.style`)}
-            ${sheetField('PRODUCTO/PRODUCT/제품', orderInfo.product, `${basePath}.order_info.product`)}
-            ${sheetField('TEMPORADA/SEASON', orderInfo.season, `${basePath}.order_info.season`)}
-            ${sheetField('CANTIDAD/QTY/수량', orderInfo.qty, `${basePath}.order_info.qty`)}
-            ${sheetField('ENTREGA/SHIPDATE/납기', orderInfo.ship_date, `${basePath}.order_info.ship_date`)}
-            ${sheetField('COSTO/CM/공임', orderInfo.cm_cost, `${basePath}.order_info.cm_cost`)}
+            ${sheetField('BUYER', orderInfo.buyer, `${basePath}.order_info.buyer`)}
+            ${sheetField('STYLE #', orderInfo.style, `${basePath}.order_info.style`)}
+            ${sheetField('PRODUCT', orderInfo.product, `${basePath}.order_info.product`)}
+            ${sheetField('SEASON', orderInfo.season, `${basePath}.order_info.season`)}
+            ${sheetField('QTY', orderInfo.qty, `${basePath}.order_info.qty`)}
+            ${sheetField('SHIP DATE', orderInfo.ship_date, `${basePath}.order_info.ship_date`)}
+            ${sheetField('CM COST', orderInfo.cm_cost, `${basePath}.order_info.cm_cost`)}
           </div>
           <div class="sheet-col">
-            ${sheetField('HILAZA/YARN/사종', fabricInfo.yarn, `${basePath}.fabric_info.yarn`)}
-            ${sheetField('TELA 1/FABRIC/원단', fabricInfo.fabric, `${basePath}.fabric_info.fabric`)}
-            ${sheetField('ANCHO/WIDTH/폭', fabricInfo.width, `${basePath}.fabric_info.width`)}
-            ${sheetField('PESO/WEIGHT/중량', fabricInfo.weight, `${basePath}.fabric_info.weight`)}
-            ${sheetField('TELA 2/FABRIC2/원단2', fabricInfo.fabric2, `${basePath}.fabric_info.fabric2`)}
-            ${sheetField('ANCHO/WIDTH/폭', fabricInfo.width2, `${basePath}.fabric_info.width2`)}
-            ${sheetField('CONSUMO/YIELD/요척', fabricInfo.yield_total, `${basePath}.fabric_info.yield_total`)}
+            ${sheetField('YARN', fabricInfo.yarn, `${basePath}.fabric_info.yarn`)}
+            ${sheetField('FABRIC 1', fabricInfo.fabric, `${basePath}.fabric_info.fabric`)}
+            ${sheetField('WIDTH', fabricInfo.width, `${basePath}.fabric_info.width`)}
+            ${sheetField('WEIGHT', fabricInfo.weight, `${basePath}.fabric_info.weight`)}
+            ${sheetField('FABRIC 2', fabricInfo.fabric2, `${basePath}.fabric_info.fabric2`)}
+            ${sheetField('WIDTH 2', fabricInfo.width2, `${basePath}.fabric_info.width2`)}
+            ${sheetField('YIELD', fabricInfo.yield_total, `${basePath}.fabric_info.yield_total`)}
           </div>
         </div>
 
-        <div class="sheet-section">3. PROCESO DEL ORDEN/ ORDER PROCEDURE/오더 공정 순서</div>
-        ${processText ? `<div class="sheet-procedure ${state.editMode ? 'editable-field' : ''}" ${state.editMode ? 'contenteditable="true"' : ''} data-path="${basePath}.order_procedure">${escapeHtml(processText)}</div>` : `<div class="sheet-procedure">CORTE - COSTURA - EMPAQUE</div>`}
+        <div class="sheet-section">3. ORDER PROCEDURE</div>
+        ${processText ? `<div class="sheet-procedure ${state.editMode ? 'editable-field' : ''}" ${state.editMode ? 'contenteditable="true"' : ''} data-path="${basePath}.order_procedure">${escapeHtml(processText)}</div>` : `<div class="sheet-procedure">CUT - SEW - PACK</div>`}
 
-        <div class="sheet-section">4. CANTIDAD POR ESTILO, COLOR & PO/ QTY PER STYLE, COLOR & PO/재단 정보</div>
+        <div class="sheet-section">4. QTY PER STYLE, COLOR & PO</div>
         ${renderEditableTable(qtyLines, qtyColumns, `${basePath}.quantity_lines`)}
 
-        <div class="sheet-section">5. DETALLES DE CORTE/ CUTTING DETAIL/재단 작업 디테일</div>
+        <div class="sheet-section">5. CUTTING DETAIL</div>
         ${renderEditableLines(cutNotes, `${basePath}.cutting_detail_notes`)}
 
-        <div class="sheet-section">6. DETALLES DE OPERACION/ SEWING DETAIL/봉제 작업 디테일</div>
+        <div class="sheet-section">6. SEWING DETAIL</div>
         ${renderEditableLines(sewNotes, `${basePath}.sewing_detail_notes`)}
 
-        <div class="sheet-section">7. ESPECIFICACION DE MEDIDAS/ MEASUREMENT SPECIFICATION/치수</div>
+        <div class="sheet-section">7. MEASUREMENT SPECIFICATION</div>
         ${renderEditableTable(measRows, measColumns, `${basePath}.measurement_rows`)}
 
-        <div class="sheet-section">8. DETALLES DE ETIQUETAS Y ACABADO/ TRIM & PACKING DETAILS/부자재 및 완성 디테일</div>
+        <div class="sheet-section">8. TRIM & PACKING DETAILS</div>
         ${renderLabelsInfo(labelsInfo, sw.trim_packing_notes)}
 
         ${renderYieldInfo(sw.yield_info)}
@@ -382,7 +382,7 @@ function renderYieldInfo(yieldInfo) {
   if (!yieldInfo || (!yieldInfo.body && !yieldInfo.rib)) return '';
   const unit = yieldInfo.unit || 'YD/DZ';
   return `
-    <div class="sheet-section">9. CONSUMO/ YIELD/요척</div>
+    <div class="sheet-section">9. YIELD</div>
     <div class="sheet-grid">
       ${yieldInfo.body ? sheetField('BODY', `${yieldInfo.body} ${unit}`) : ''}
       ${yieldInfo.rib ? sheetField('RIB', `${yieldInfo.rib} ${unit}`) : ''}
@@ -395,7 +395,7 @@ function renderImportantNotes(notes) {
   if (!Array.isArray(notes) || notes.length === 0) return '';
   const items = notes.map(n => `<li>${escapeHtml(fmt(n))}</li>`).join('');
   return `
-    <div class="sheet-section">NOTAS IMPORTANTES/ IMPORTANT NOTES/중요 사항</div>
+    <div class="sheet-section">IMPORTANT NOTES</div>
     <ol class="lines">${items}</ol>
   `;
 }
@@ -1420,7 +1420,7 @@ function renderExtractedImages(images) {
     <div class="extracted-image-item" data-image-idx="${idx}">
       <div class="extracted-image-header">
         <span class="image-info">Page ${img.page}, Image #${img.index} (${img.width}x${img.height})</span>
-        <button class="btn-ocr-roi" onclick="openImageRoiModal(${idx})" title="Seleccionar región para OCR">
+        <button class="btn-ocr-roi" onclick="openImageRoiModal(${idx})" title="Select region for OCR">
           <i class="fas fa-crop-alt"></i> OCR ROI
         </button>
       </div>
@@ -1444,31 +1444,31 @@ function renderExtractedImages(images) {
     <div id="roi-modal" class="roi-modal" style="display:none">
       <div class="roi-modal-content">
         <div class="roi-modal-header">
-          <h3><i class="fas fa-crop-alt"></i> Extraer Región de Imagen</h3>
+          <h3><i class="fas fa-crop-alt"></i> Extract Image Region</h3>
           <button class="roi-modal-close" onclick="closeRoiModal()">&times;</button>
         </div>
         <div class="roi-modal-body">
           <div class="roi-tabs">
             <button class="roi-tab active" onclick="switchRoiTab('auto')" id="roi-tab-auto">
-              <i class="fas fa-magic"></i> Auto-detectar
+              <i class="fas fa-magic"></i> Auto Detect
             </button>
             <button class="roi-tab" onclick="switchRoiTab('manual')" id="roi-tab-manual">
-              <i class="fas fa-draw-polygon"></i> Selección Manual
+              <i class="fas fa-draw-polygon"></i> Manual Select
             </button>
           </div>
           
           <div class="roi-auto-panel" id="roi-auto-panel">
             <div class="roi-instructions">
-              <i class="fas fa-info-circle"></i> Haz clic en una región detectada para extraer texto e imagen.
+              <i class="fas fa-info-circle"></i> Click a detected region to extract text and image.
             </div>
             <div class="roi-detected-regions" id="roi-detected-regions">
-              <div class="roi-detecting"><div class="spinner"></div> Detectando regiones de texto...</div>
+              <div class="roi-detecting"><div class="spinner"></div> Detecting text regions...</div>
             </div>
           </div>
           
           <div class="roi-manual-panel" id="roi-manual-panel" style="display:none">
             <div class="roi-instructions">
-              <i class="fas fa-info-circle"></i> Dibuja un rectángulo sobre el área que deseas extraer.
+              <i class="fas fa-info-circle"></i> Draw a rectangle over the area you want to extract.
             </div>
           </div>
           
@@ -1476,52 +1476,52 @@ function renderExtractedImages(images) {
             <canvas id="roi-modal-canvas"></canvas>
           </div>
           <div class="roi-info" id="roi-modal-info" style="display:none">
-            <strong>Región:</strong> <span id="roi-modal-coords"></span>
+            <strong>Region:</strong> <span id="roi-modal-coords"></span>
           </div>
           <div class="roi-selected-rois" id="roi-selected-rois" style="display:none"></div>
         </div>
         <div class="roi-modal-footer">
           <label class="roi-checkbox">
             <input type="checkbox" id="roi-use-claude">
-            <span>Usar Claude Vision (OCR más preciso)</span>
+            <span>Use Claude Vision (more accurate OCR)</span>
           </label>
           <div class="roi-modal-buttons">
-            <button class="btn-secondary" onclick="closeRoiModal()">Cancelar</button>
+            <button class="btn-secondary" onclick="closeRoiModal()">Cancel</button>
             <button class="btn-info" id="roi-extract-image-btn" onclick="extractRoiImageOnly()" disabled>
-              <i class="fas fa-image"></i> Solo Imagen
+              <i class="fas fa-image"></i> Image Only
             </button>
             <button class="btn-success" id="roi-extract-btn" onclick="extractRoiText()" disabled>
-              <i class="fas fa-file-alt"></i> Texto + Imagen
+              <i class="fas fa-file-alt"></i> Text + Image
             </button>
           </div>
         </div>
         <div class="roi-modal-results" id="roi-modal-results" style="display:none">
           <div class="roi-results-header">
-            <strong><i class="fas fa-file-alt"></i> Texto Extraído:</strong>
+            <strong><i class="fas fa-file-alt"></i> Extracted Text:</strong>
             <div class="roi-results-actions">
-              <button class="btn-sm" onclick="copyRoiText()" title="Copiar texto"><i class="fas fa-copy"></i></button>
+              <button class="btn-sm" onclick="copyRoiText()" title="Copy text"><i class="fas fa-copy"></i></button>
             </div>
           </div>
           <pre id="roi-modal-text"></pre>
           <div class="roi-cropped-section" id="roi-cropped-section" style="display:none">
-            <strong><i class="fas fa-image"></i> Imagen Recortada:</strong>
+            <strong><i class="fas fa-image"></i> Cropped Image:</strong>
             <div class="roi-cropped-preview">
               <img id="roi-cropped-img" src="" alt="Cropped region" />
               <div id="roi-cropped-gallery"></div>
             </div>
             <div class="roi-cropped-actions">
               <button class="btn-primary btn-sm" onclick="downloadCroppedImage()">
-                <i class="fas fa-download"></i> Descargar Imagen
+                <i class="fas fa-download"></i> Download Image
               </button>
               <button class="btn-secondary btn-sm" onclick="attachCroppedImage()">
-                <i class="fas fa-paperclip"></i> Adjuntar a Resultados
+                <i class="fas fa-paperclip"></i> Attach to Results
               </button>
             </div>
           </div>
         </div>
         <div class="roi-modal-loading" id="roi-modal-loading" style="display:none">
           <div class="spinner"></div>
-          <span id="roi-loading-text">Procesando...</span>
+          <span id="roi-loading-text">Processing...</span>
         </div>
       </div>
     </div>
@@ -1680,7 +1680,7 @@ async function detectTextRegions() {
   if (!imageData) return;
   
   const regionsContainer = document.getElementById('roi-detected-regions');
-  regionsContainer.innerHTML = '<div class="roi-detecting"><div class="spinner"></div> Detectando regiones (Local)...</div>';
+  regionsContainer.innerHTML = '<div class="roi-detecting"><div class="spinner"></div> Detecting regions...</div>';
   
   try {
     let base64 = imageData;
@@ -1709,8 +1709,8 @@ async function detectTextRegions() {
     regionsContainer.innerHTML = `
       <div class="roi-no-regions">
         <i class="fas fa-exclamation-triangle"></i> 
-        No se pudieron detectar regiones automáticamente. 
-        <br>Usa la pestaña "Selección Manual" para dibujar una región.
+        Could not auto-detect regions.
+        <br>Use the "Manual Select" tab to draw a region.
       </div>
     `;
   }
@@ -1724,8 +1724,8 @@ function renderDetectedRegions() {
     container.innerHTML = `
       <div class="roi-no-regions">
         <i class="fas fa-info-circle"></i> 
-        No se detectaron regiones. 
-        <br>Usa la pestaña "Selección Manual" para dibujar una región.
+        No regions detected.
+        <br>Use the "Manual Select" tab to draw a region.
       </div>
     `;
     return;
@@ -1738,14 +1738,14 @@ function renderDetectedRegions() {
   
   const getTypeIcon = (type) => {
     switch(type) {
-      case 'text': return '<i class="fas fa-font" title="Texto"></i>';
-      case 'illustration': return '<i class="fas fa-image" title="Ilustración"></i>';
-      case 'box': return '<i class="fas fa-square" title="Caja/Recuadro"></i>';
-      case 'shape': return '<i class="fas fa-shapes" title="Forma"></i>';
+      case 'text': return '<i class="fas fa-font" title="Text"></i>';
+      case 'illustration': return '<i class="fas fa-image" title="Illustration"></i>';
+      case 'box': return '<i class="fas fa-square" title="Box"></i>';
+      case 'shape': return '<i class="fas fa-shapes" title="Shape"></i>';
       case 'banner': return '<i class="fas fa-minus" title="Banner"></i>';
-      case 'mixed': return '<i class="fas fa-layer-group" title="Mixto"></i>';
-      case 'colored': return '<i class="fas fa-palette" title="Área de color"></i>';
-      case 'section': return '<i class="fas fa-th-large" title="Sección"></i>';
+      case 'mixed': return '<i class="fas fa-layer-group" title="Mixed"></i>';
+      case 'colored': return '<i class="fas fa-palette" title="Color Area"></i>';
+      case 'section': return '<i class="fas fa-th-large" title="Section"></i>';
       default: return '<i class="fas fa-vector-square"></i>';
     }
   };
@@ -1772,15 +1772,15 @@ function renderDetectedRegions() {
   
   container.innerHTML = `
     <div class="roi-regions-summary">
-      <span class="roi-summary-item"><i class="fas fa-font"></i> ${textCount} texto</span>
+      <span class="roi-summary-item"><i class="fas fa-font"></i> ${textCount} text</span>
       <span class="roi-summary-item"><i class="fas fa-image"></i> ${visualCount} visual</span>
-      ${mixedCount > 0 ? `<span class="roi-summary-item"><i class="fas fa-layer-group"></i> ${mixedCount} mixto</span>` : ''}
+      ${mixedCount > 0 ? `<span class="roi-summary-item"><i class="fas fa-layer-group"></i> ${mixedCount} mixed</span>` : ''}
     </div>
     <div class="roi-regions-list">
       ${regionsHtml}
     </div>
     <div class="roi-regions-hint">
-      <i class="fas fa-mouse-pointer"></i> Haz clic en una región o directamente en la imagen
+      <i class="fas fa-mouse-pointer"></i> Click a region or click directly on the image
     </div>
   `;
 }
@@ -1821,7 +1821,7 @@ function toggleDetectedRegion(idx) {
   if (count > 0) {
     const r = roiModalState.currentRoi;
     document.getElementById('roi-modal-coords').textContent = 
-      `Seleccionadas: ${count} | Última: X: ${r.x}, Y: ${r.y}, ${r.width}x${r.height}px`;
+      `Selected: ${count} | Last: X: ${r.x}, Y: ${r.y}, ${r.width}x${r.height}px`;
     document.getElementById('roi-modal-info').style.display = 'block';
     document.getElementById('roi-extract-btn').disabled = false;
     document.getElementById('roi-extract-image-btn').disabled = false;
@@ -2016,7 +2016,7 @@ function stopRoiDrawing() {
     document.getElementById('roi-extract-btn').disabled = roiModalState.selectedRois.length === 0;
     document.getElementById('roi-extract-image-btn').disabled = roiModalState.selectedRois.length === 0;
     document.getElementById('roi-modal-coords').textContent = 
-      `Seleccionadas: ${roiModalState.selectedRois.length} | Última: X: ${roiModalState.currentRoi.x}, Y: ${roiModalState.currentRoi.y}, ${roiModalState.currentRoi.width}x${roiModalState.currentRoi.height}px`;
+      `Selected: ${roiModalState.selectedRois.length} | Last: X: ${roiModalState.currentRoi.x}, Y: ${roiModalState.currentRoi.y}, ${roiModalState.currentRoi.width}x${roiModalState.currentRoi.height}px`;
     document.getElementById('roi-modal-info').style.display = 'block';
     updateSelectedRoisUI();
   }
@@ -2065,14 +2065,14 @@ function updateSelectedRoisUI() {
       <div class="roi-selected-item">
         <span class="roi-selected-label">${label}</span>
         <span class="roi-selected-coords">X:${r.x} Y:${r.y} ${r.width}x${r.height}</span>
-        <button class="btn-sm" onclick="removeSelectedRoi(${idx})" title="Quitar"><i class="fas fa-times"></i></button>
+        <button class="btn-sm" onclick="removeSelectedRoi(${idx})" title="Remove"><i class="fas fa-times"></i></button>
       </div>
     `;
   }).join('');
   container.innerHTML = `
     <div class="roi-selected-header">
-      <strong>Zonas seleccionadas: ${count}</strong>
-      <button class="btn-sm" onclick="clearSelectedRois()" title="Limpiar"><i class="fas fa-eraser"></i></button>
+      <strong>Selected regions: ${count}</strong>
+      <button class="btn-sm" onclick="clearSelectedRois()" title="Clear"><i class="fas fa-eraser"></i></button>
     </div>
     <div class="roi-selected-list">${items}</div>
   `;
@@ -2087,7 +2087,7 @@ async function extractRoiText() {
   const useClaude = document.getElementById('roi-use-claude').checked;
   
   document.getElementById('roi-modal-loading').style.display = 'flex';
-  document.getElementById('roi-loading-text').textContent = 'Extrayendo texto e imagen...';
+  document.getElementById('roi-loading-text').textContent = 'Extracting text and image...';
   document.getElementById('roi-modal-results').style.display = 'none';
   document.getElementById('roi-cropped-section').style.display = 'none';
   
@@ -2121,7 +2121,7 @@ async function extractRoiText() {
         throw new Error(result.error);
       }
 
-      texts.push(`--- Zona ${i + 1} (${r.width}x${r.height}) ---\n${result.text || '(No se encontró texto)'}`);
+      texts.push(`--- Region ${i + 1} (${r.width}x${r.height}) ---\n${result.text || '(No text found)'}`);
       if (result.cropped_image) {
         cropped.push({ idx: i, dataUrl: result.cropped_image, roi: r });
       }
@@ -2145,7 +2145,7 @@ async function extractRoiText() {
         <div class="roi-crop-tile">
           <img src="${c.dataUrl}" alt="Cropped region" />
           <button class="btn-sm" onclick="downloadImageFromSrc('${c.dataUrl}', 'roi_${roiModalState.imageIdx}_${Date.now()}_${c.idx + 1}.png')">
-            <i class="fas fa-download"></i> Descargar
+            <i class="fas fa-download"></i> Download
           </button>
         </div>
       `).join('');
@@ -2163,14 +2163,14 @@ async function extractRoiText() {
         <div class="roi-result-image">
           <img src="${c.dataUrl}" alt="Cropped region" />
           <button class="btn-sm" onclick="downloadImageFromSrc('${c.dataUrl}', 'roi_${roiModalState.imageIdx}_${Date.now()}_${c.idx + 1}.png')">
-            <i class="fas fa-download"></i> Descargar
+            <i class="fas fa-download"></i> Download
           </button>
         </div>
       `).join('');
       resultsDiv.innerHTML = `
         <div class="roi-result-item">
           <div class="roi-result-header">
-            <strong>OCR ROI (Zonas: ${rois.length}):</strong>
+            <strong>OCR ROI (Regions: ${rois.length}):</strong>
           </div>
           <pre>${escapeHtml(texts.join('\n\n'))}</pre>
           ${mainGallery ? `<div class="roi-result-gallery">${mainGallery}</div>` : ''}
@@ -2181,7 +2181,7 @@ async function extractRoiText() {
     
   } catch (error) {
     console.error('OCR ROI error:', error);
-    alert('Error al extraer texto: ' + error.message);
+    alert('Failed to extract text: ' + error.message);
   } finally {
     document.getElementById('roi-modal-loading').style.display = 'none';
   }
@@ -2190,7 +2190,7 @@ async function extractRoiText() {
 function copyRoiText() {
   const text = document.getElementById('roi-modal-text').textContent;
   navigator.clipboard.writeText(text).then(() => {
-    showToast('Texto copiado al portapapeles');
+    showToast('Text copied to clipboard');
   }).catch(err => {
     console.error('Failed to copy:', err);
   });
@@ -2202,7 +2202,7 @@ async function extractRoiImageOnly() {
   if (rois.length === 0 || !imageData) return;
   
   document.getElementById('roi-modal-loading').style.display = 'flex';
-  document.getElementById('roi-loading-text').textContent = 'Extrayendo imagen...';
+  document.getElementById('roi-loading-text').textContent = 'Extracting image...';
   document.getElementById('roi-modal-results').style.display = 'none';
   document.getElementById('roi-cropped-section').style.display = 'none';
   
@@ -2222,14 +2222,14 @@ async function extractRoiImageOnly() {
     roiModalState.lastCroppedImages = croppedImages.map(c => c.dataUrl);
     roiModalState.lastCroppedImage = roiModalState.lastCroppedImages[0] || null;
 
-    document.getElementById('roi-modal-text').textContent = `(Solo imagen - ${rois.length} zona(s))`;
+    document.getElementById('roi-modal-text').textContent = `(Image only - ${rois.length} region(s))`;
     document.getElementById('roi-modal-results').style.display = 'block';
 
     const galleryHtml = croppedImages.map((c) => `
       <div class="roi-crop-tile">
         <img src="${c.dataUrl}" alt="Cropped region" />
         <button class="btn-sm" onclick="downloadImageFromSrc('${c.dataUrl}', 'roi_${roiModalState.imageIdx}_${Date.now()}_${c.idx + 1}.png')">
-          <i class="fas fa-download"></i> Descargar
+          <i class="fas fa-download"></i> Download
         </button>
       </div>
     `).join('');
@@ -2245,14 +2245,14 @@ async function extractRoiImageOnly() {
         <div class="roi-result-image">
           <img src="${c.dataUrl}" alt="Cropped region" />
           <button class="btn-sm" onclick="downloadImageFromSrc('${c.dataUrl}', 'roi_${roiModalState.imageIdx}_${Date.now()}_${c.idx + 1}.png')">
-            <i class="fas fa-download"></i> Descargar
+            <i class="fas fa-download"></i> Download
           </button>
         </div>
       `).join('');
       resultsDiv.innerHTML = `
         <div class="roi-result-item">
           <div class="roi-result-header">
-            <strong>Imágenes extraídas (Zonas: ${rois.length}):</strong>
+            <strong>Extracted images (Regions: ${rois.length}):</strong>
           </div>
           <div class="roi-result-gallery">${mainGallery}</div>
         </div>
@@ -2260,11 +2260,11 @@ async function extractRoiImageOnly() {
       resultsDiv.style.display = 'block';
     }
 
-    showToast('Imagen(es) extraída(s) correctamente');
+    showToast('Image(s) extracted successfully');
     
   } catch (error) {
     console.error('Error extracting image:', error);
-    alert('Error al extraer imagen: ' + error.message);
+    alert('Failed to extract image: ' + error.message);
   } finally {
     document.getElementById('roi-modal-loading').style.display = 'none';
   }
@@ -2278,7 +2278,7 @@ function downloadCroppedImage() {
   const rois = selectedRois.length > 0 ? selectedRois : (currentRoi ? [{ ...currentRoi }] : []);
   images.forEach((img, i) => {
     const r = rois[i] || rois[0] || currentRoi || { width: 0, height: 0 };
-    const filename = `roi_imagen${imageIdx + 1}_${r.width}x${r.height}_${Date.now()}_${i + 1}.png`;
+    const filename = `roi_image${imageIdx + 1}_${r.width}x${r.height}_${Date.now()}_${i + 1}.png`;
     downloadImageFromSrc(img, filename);
   });
 }
@@ -2290,7 +2290,7 @@ function downloadImageFromSrc(dataUrl, filename) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  showToast('Imagen descargada: ' + filename);
+  showToast('Image downloaded: ' + filename);
 }
 
 function attachCroppedImage() {
@@ -2326,13 +2326,13 @@ function attachCroppedImage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: state.currentResults })
     }).then(() => {
-      showToast(`Imagen(es) adjuntada(s) a los resultados (${images.length})`);
+      showToast(`Image(s) attached to results (${images.length})`);
     }).catch(err => {
       console.error('Error saving:', err);
-      showToast('Error al guardar');
+      showToast('Save failed');
     });
   } else {
-    showToast(`Imagen(es) adjuntada(s) (guardado local) (${images.length})`);
+    showToast(`Image(s) attached (local only) (${images.length})`);
   }
 }
 
@@ -2637,11 +2637,13 @@ async function checkHealth() {
     const data = await apiGet('/health');
     el.classList.remove('status-unknown', 'status-error');
     el.classList.add('status-ok');
-    el.querySelector('span').textContent = `Backend: ${data.status}`;
+    const textEl = el.querySelector('.status-text');
+    if (textEl) textEl.textContent = `Connected`;
   } catch {
     el.classList.remove('status-unknown', 'status-ok');
     el.classList.add('status-error');
-    el.querySelector('span').textContent = 'Backend: error';
+    const textEl = el.querySelector('.status-text');
+    if (textEl) textEl.textContent = 'Connection error';
   }
 }
 
@@ -2660,10 +2662,12 @@ function renderJobs() {
   container.innerHTML = '';
 
   if (!state.jobs.length) {
-    const p = document.createElement('p');
-    p.className = 'empty';
-    p.textContent = 'No jobs yet';
-    container.appendChild(p);
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>No jobs yet</p>
+      </div>
+    `;
     return;
   }
 
@@ -2675,15 +2679,19 @@ function renderJobs() {
     const dot = document.createElement('span');
     dot.className = 'status-dot status-' + (job.status || 'PENDING').toLowerCase();
 
-    const title = document.createElement('span');
-    title.className = 'title';
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'job-info';
+    
+    const title = document.createElement('div');
+    title.className = 'job-title';
     title.textContent = job.file_name || 'Untitled';
 
-    const meta = document.createElement('span');
-    meta.className = 'meta';
+    const meta = document.createElement('div');
+    meta.className = 'job-meta';
     meta.textContent = `${job.mode} · ${job.status}`;
 
-    div.append(dot, title, meta);
+    infoDiv.append(title, meta);
+    div.append(dot, infoDiv);
     container.appendChild(div);
   }
 }
@@ -2702,6 +2710,12 @@ async function selectJob(jobId) {
 
 function renderJobDetail(job) {
   const section = qs('detail-section');
+  const uploadSection = qs('upload-section');
+  const tabs = document.getElementById('detail-tabs');
+  const processingPanel = document.getElementById('detail-processing');
+  
+  // Hide upload, show detail
+  if (uploadSection) uploadSection.classList.add('hidden');
   section.classList.remove('hidden');
 
   qs('detail-file-name').textContent = job.file_name || 'Untitled';
@@ -2712,10 +2726,23 @@ function renderJobDetail(job) {
   
   // Store results for editing
   state.currentResults = job.results ? JSON.parse(JSON.stringify(job.results)) : null;
+  state.currentJob = job;
   
   // Reset table counter for fresh IDs
   tableIdCounter = 0;
   window.editableTables = {};
+
+  const isProcessing = job.status === 'PROCESSING' && !job.results;
+  if (processingPanel) processingPanel.classList.toggle('hidden', !isProcessing);
+  if (tabs) tabs.classList.toggle('hidden', isProcessing);
+
+  // Hide all tab panels while processing to avoid confusion
+  document.querySelectorAll('.tab-content').forEach((el) => {
+    el.classList.toggle('hidden', isProcessing);
+  });
+  // Keep preview panel visible as the placeholder container when processing
+  const previewTab = document.getElementById('tab-preview');
+  if (previewTab) previewTab.classList.toggle('hidden', false);
   
   if (job.results) {
     editor.value = JSON.stringify(job.results, null, 2);
@@ -2728,11 +2755,36 @@ function renderJobDetail(job) {
   }
 
   if (job.results) {
+    // Results are ready: show tabs and tab contents
+    if (processingPanel) processingPanel.classList.add('hidden');
+    if (tabs) tabs.classList.remove('hidden');
+    document.querySelectorAll('.tab-content').forEach((el) => el.classList.remove('hidden'));
+
     previewEl.innerHTML = renderResultsPreview(job.mode, job.results);
     // Attach editable listeners after rendering
     setTimeout(() => attachEditableListeners(), 0);
   } else {
-    previewEl.innerHTML = `<p class="empty">${escapeHtml(job.file_name || '')}</p><p class="empty">${escapeHtml(job.mode)} · ${escapeHtml(job.status)}</p>`;
+    previewEl.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-hourglass-half"></i>
+        <p>${escapeHtml(job.status === 'PROCESSING' ? 'Processing document...' : 'Waiting for results')}</p>
+      </div>
+    `;
+  }
+
+  // Load document for PDF regions tab
+  if (typeof loadDocumentForRegions === 'function') {
+    loadDocumentForRegions(job);
+  }
+
+  // Load document for Document viewer tab
+  if (typeof loadDocumentForViewer === 'function') {
+    loadDocumentForViewer(job);
+  }
+
+  // Load document for Editor tab
+  if (typeof loadDocumentForEditor === 'function') {
+    loadDocumentForEditor(job);
   }
 
   editor.oninput = () => {
@@ -2740,7 +2792,7 @@ function renderJobDetail(job) {
     try {
       parsed = JSON.parse(editor.value || '{}');
     } catch {
-      previewEl.innerHTML = `<p class="empty">Invalid JSON</p>`;
+      previewEl.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Invalid JSON</p></div>`;
       return;
     }
     state.currentResults = parsed;
@@ -2797,37 +2849,157 @@ function initUI() {
   const uploadBox = qs('upload-box');
   const fileInput = qs('file-input');
 
-  uploadBox.addEventListener('click', () => fileInput.click());
-  uploadBox.addEventListener('dragover', e => {
-    e.preventDefault();
-  });
-  uploadBox.addEventListener('drop', e => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    handleFileSelected(file);
-  });
+  if (uploadBox) {
+    uploadBox.addEventListener('click', (e) => {
+      // Don't trigger file input if clicking on mode buttons
+      if (e.target.closest('.mode-btn')) return;
+      fileInput.click();
+    });
+    uploadBox.addEventListener('dragover', e => {
+      e.preventDefault();
+      uploadBox.style.borderColor = 'var(--primary)';
+    });
+    uploadBox.addEventListener('dragleave', e => {
+      e.preventDefault();
+      uploadBox.style.borderColor = '';
+    });
+    uploadBox.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadBox.style.borderColor = '';
+      const file = e.dataTransfer.files[0];
+      handleFileSelected(file);
+    });
+  }
 
-  fileInput.addEventListener('change', e => {
-    const file = e.target.files[0];
-    handleFileSelected(file);
-  });
+  if (fileInput) {
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      handleFileSelected(file);
+    });
+  }
 
-  qs('btn-mode-document').addEventListener('click', () => {
-    state.mode = 'DOCUMENT';
-    qs('btn-mode-document').classList.add('active');
-    qs('btn-mode-design').classList.remove('active');
-  });
+  // Mode selector buttons
+  const btnModeDocument = qs('btn-mode-document');
+  const btnModeDesign = qs('btn-mode-design');
+  
+  if (btnModeDocument) {
+    btnModeDocument.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.mode = 'DOCUMENT';
+      btnModeDocument.classList.add('active');
+      if (btnModeDesign) btnModeDesign.classList.remove('active');
+    });
+  }
 
-  qs('btn-mode-design').addEventListener('click', () => {
-    state.mode = 'DESIGN';
-    qs('btn-mode-design').classList.add('active');
-    qs('btn-mode-document').classList.remove('active');
-  });
+  if (btnModeDesign) {
+    btnModeDesign.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.mode = 'DESIGN';
+      btnModeDesign.classList.add('active');
+      if (btnModeDocument) btnModeDocument.classList.remove('active');
+    });
+  }
 
-  qs('btn-refresh-job').addEventListener('click', async () => {
-    if (state.selectedJobId) {
-      await selectJob(state.selectedJobId);
-    }
+  // Refresh button
+  const btnRefresh = qs('btn-refresh-job');
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', async () => {
+      if (state.selectedJobId) {
+        await selectJob(state.selectedJobId);
+        showToast('Job refreshed');
+      }
+    });
+  }
+
+  // Save button removed
+
+  // New job button
+  const btnNewJob = qs('btn-new-job');
+  if (btnNewJob) {
+    btnNewJob.addEventListener('click', () => {
+      // Show upload section, hide detail
+      const uploadSection = qs('upload-section');
+      const detailSection = qs('detail-section');
+      if (uploadSection) uploadSection.classList.remove('hidden');
+      if (detailSection) detailSection.classList.add('hidden');
+      state.selectedJobId = null;
+      renderJobs();
+    });
+  }
+
+  // Tab navigation
+  initTabs();
+  
+  // JSON toolbar buttons
+  const btnFormatJson = qs('btn-format-json');
+  if (btnFormatJson) {
+    btnFormatJson.addEventListener('click', () => {
+      const editor = qs('results-editor');
+      try {
+        const parsed = JSON.parse(editor.value);
+        editor.value = JSON.stringify(parsed, null, 2);
+        showToast('JSON formatted');
+      } catch {
+        showToast('Invalid JSON');
+      }
+    });
+  }
+
+  const btnCopyJson = qs('btn-copy-json');
+  if (btnCopyJson) {
+    btnCopyJson.addEventListener('click', () => {
+      const editor = qs('results-editor');
+      navigator.clipboard.writeText(editor.value).then(() => {
+        showToast('JSON copied to clipboard');
+      });
+    });
+  }
+}
+
+// Tab navigation functionality
+function initTabs() {
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      
+      // Update button states
+      tabBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      
+      const targetTab = document.getElementById(`tab-${tabId}`);
+      if (targetTab) {
+        targetTab.classList.add('active');
+      }
+      
+      // Initialize PDF regions if switching to that tab
+      if (tabId === 'pdf-regions' && typeof initPdfRegions === 'function') {
+        initPdfRegions();
+        if (state.currentJob && typeof loadDocumentForRegions === 'function') {
+          loadDocumentForRegions(state.currentJob);
+        }
+      }
+      
+      // Initialize Document viewer if switching to that tab
+      if (tabId === 'document' && typeof loadDocumentForViewer === 'function') {
+        if (state.currentJob) {
+          loadDocumentForViewer(state.currentJob);
+        }
+      }
+      
+      // Initialize Editor if switching to that tab
+      if (tabId === 'editor' && typeof loadDocumentForEditor === 'function') {
+        if (state.currentJob) {
+          loadDocumentForEditor(state.currentJob);
+        }
+      }
+    });
   });
 }
 

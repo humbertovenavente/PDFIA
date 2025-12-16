@@ -3,7 +3,20 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "python",
+    
     "CLAUDE_API_KEY": "",
-    "CLAUDE_MODEL": "claude-3-sonnet-20240229"
+    "CLAUDE_MODEL": "claude-3-sonnet-20240229",
+    
+    "AZURE_DI_ENDPOINT": "https://your-resource.cognitiveservices.azure.com/",
+    "AZURE_DI_KEY": "",
+    "AZURE_DI_MODEL": "prebuilt-layout",
+    "AZURE_DI_API_VERSION": "2024-11-30",
+    "AZURE_DI_LOCALE": "es",
+    "AZURE_DI_OUTPUT_CONTENT_FORMAT": "text",
+    "AZURE_DI_TIMEOUT_SECONDS": "120",
+    "AZURE_DI_POLL_TIMEOUT_SECONDS": "180",
+    "AZURE_DI_POLL_INTERVAL_SECONDS": "2.5",
+    
+    "TESSERACT_PATH": ""
   }
 }

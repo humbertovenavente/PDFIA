@@ -216,6 +216,60 @@ def get_job(req: func.HttpRequest) -> func.HttpResponse:
     return _json_response(job_with_results)
 
 
+@app.route(route="jobs/{jobId}/file", methods=["GET", "OPTIONS"])
+def get_job_file(req: func.HttpRequest) -> func.HttpResponse:
+    """Return the original uploaded file for a job."""
+    if req.method == "OPTIONS":
+        return _cors_preflight()
+    
+    job_id_str = req.route_params.get("jobId")
+    if not job_id_str:
+        return _bad_request("Invalid job ID")
+
+    job_id = _parse_uuid(job_id_str)
+    if not job_id:
+        return _bad_request("Invalid job ID")
+
+    job = supabase.get_job(str(job_id))
+    if job is None:
+        return _not_found("Job not found")
+
+    file_path = job.get("file_path")
+    if not file_path:
+        return _not_found("File path not found for this job")
+
+    try:
+        file_bytes = supabase.download_file(file_path)
+    except FileNotFoundError:
+        return _not_found("File not found in storage")
+
+    # Determine content type based on file extension
+    file_name = job.get("file_name", "file")
+    content_type = "application/octet-stream"
+    if file_name.lower().endswith(".pdf"):
+        content_type = "application/pdf"
+    elif file_name.lower().endswith((".jpg", ".jpeg")):
+        content_type = "image/jpeg"
+    elif file_name.lower().endswith(".png"):
+        content_type = "image/png"
+    elif file_name.lower().endswith(".gif"):
+        content_type = "image/gif"
+    elif file_name.lower().endswith(".webp"):
+        content_type = "image/webp"
+
+    return func.HttpResponse(
+        body=file_bytes,
+        status_code=200,
+        headers={
+            "Content-Type": content_type,
+            "Content-Disposition": f'inline; filename="{file_name}"',
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+    )
+
+
 @app.route(route="jobs/{jobId}/results", methods=["PUT", "OPTIONS"])
 def update_job_results(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
@@ -257,12 +311,19 @@ def ocr_roi_handler(req: func.HttpRequest) -> func.HttpResponse:
     - y: Top coordinate of ROI  
     - width: Width of ROI
     - height: Height of ROI
-    - use_claude: (optional) "true" to use Claude Vision, otherwise Tesseract
+    - use_claude: (optional) "true" to use Claude Vision (legacy)
+    - prefer_method: (optional) "auto", "azure", "claude", "tesseract"
     
     Or JSON body with:
     - image_base64: Base64 encoded image
     - x, y, width, height: ROI coordinates
-    - use_claude: (optional) boolean
+    - use_claude: (optional) boolean (legacy)
+    - prefer_method: (optional) string
+    
+    OCR priority (when prefer_method="auto"):
+    1. Azure Document Intelligence
+    2. Claude Vision
+    3. Tesseract
     """
     if req.method == "OPTIONS":
         return _cors_preflight()
@@ -271,6 +332,7 @@ def ocr_roi_handler(req: func.HttpRequest) -> func.HttpResponse:
         image_bytes: Optional[bytes] = None
         x = y = width = height = 0
         use_claude = False
+        prefer_method = "auto"
 
         content_type = req.headers.get("content-type", "").lower()
 
@@ -292,6 +354,8 @@ def ocr_roi_handler(req: func.HttpRequest) -> func.HttpResponse:
 
             use_claude_str = (req.params.get("use_claude") or req.form.get("use_claude") or "").lower()
             use_claude = use_claude_str in ("true", "1", "yes")
+            
+            prefer_method = (req.params.get("prefer_method") or req.form.get("prefer_method") or "auto").lower()
 
         elif "application/json" in content_type:
             # Parse JSON body
@@ -323,6 +387,7 @@ def ocr_roi_handler(req: func.HttpRequest) -> func.HttpResponse:
                 return _bad_request("Invalid ROI coordinates. Must be integers.")
 
             use_claude = body.get("use_claude", False) is True
+            prefer_method = body.get("prefer_method", "auto")
 
         else:
             return _bad_request("Content-Type must be multipart/form-data or application/json")
@@ -333,7 +398,7 @@ def ocr_roi_handler(req: func.HttpRequest) -> func.HttpResponse:
         if width <= 0 or height <= 0:
             return _bad_request("ROI width and height must be positive integers")
 
-        # Perform OCR on ROI
+        # Perform OCR on ROI with fallback chain
         result = ocr_service.ocr_region(
             image_bytes=image_bytes,
             x=x,
@@ -341,6 +406,7 @@ def ocr_roi_handler(req: func.HttpRequest) -> func.HttpResponse:
             width=width,
             height=height,
             use_claude=use_claude,
+            prefer_method=prefer_method,
         )
 
         if result.get("error"):

@@ -3,74 +3,119 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FilesToData v2.7 - New Job</title>
+    <title>FilesToData Pro - Document Intelligence</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
     <div class="app">
+        <!-- Sidebar -->
         <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name">FilesToData</span>
+                    <span class="brand-version">Pro v3.0</span>
+                </div>
+            </div>
+            
             <div class="sidebar-header">
                 <button id="btn-new-job" class="btn-primary full">
                     <i class="fas fa-plus"></i>
-                    <span>New job</span>
+                    <span>New Document</span>
                 </button>
             </div>
-            <div class="sidebar-content">
-                <h4 class="sidebar-title">Jobs</h4>
-                <div id="jobs-list" class="jobs-list">
-                    <p class="empty">No jobs yet</p>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <h4 class="nav-title">Recent Jobs</h4>
+                    <div id="jobs-list" class="jobs-list">
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No jobs yet</p>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div id="status-indicator" class="status-badge status-unknown">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Connecting...</span>
                 </div>
             </div>
         </aside>
 
+        <!-- Main Content -->
         <main class="main">
             <header class="main-header">
-                <h1>FilesToData v2.7</h1>
-                <span id="status-indicator" class="status status-unknown">
-                    <i class="fas fa-circle"></i>
-                    <span>Backend: checking...</span>
-                </span>
+                <div class="header-left">
+                    <h1 class="page-title">Document Intelligence</h1>
+                    <p class="page-subtitle">Extract structured data from your documents</p>
+                </div>
+                <div class="header-right">
+                    <button class="btn-icon" title="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
             </header>
 
             <section class="main-content">
-                <section id="upload-section" class="panel panel-upload">
-                    <div class="upload-box" id="upload-box">
-                        <div class="upload-icon">
-                            <i class="fas fa-cloud-upload-alt"></i>
+                <!-- Upload Section -->
+                <section id="upload-section" class="upload-section">
+                    <div class="upload-card" id="upload-box">
+                        <div class="upload-visual">
+                            <div class="upload-icon-wrapper">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <div class="upload-icon-bg"></div>
+                            </div>
                         </div>
-                        <h2>Drag & drop files here</h2>
-                        <p>or click to select</p>
+                        <div class="upload-content">
+                            <h2>Drag and drop your file here</h2>
+                            <p>or click to browse</p>
+                            <span class="upload-formats">PDF, JPG, PNG, WEBP</span>
+                        </div>
 
                         <div class="mode-selector">
-                            <button id="btn-mode-document" class="mode active" data-mode="DOCUMENT">
-                                <i class="fas fa-file-invoice"></i>
-                                <span>Document</span>
+                            <button id="btn-mode-document" class="mode-btn active" data-mode="DOCUMENT">
+                                <div class="mode-icon"><i class="fas fa-file-alt"></i></div>
+                                <div class="mode-info">
+                                    <span class="mode-name">Document</span>
+                                    <span class="mode-desc">Invoices, orders, receipts</span>
+                                </div>
                             </button>
-                            <button id="btn-mode-design" class="mode" data-mode="DESIGN">
-                                <i class="fas fa-tshirt"></i>
-                                <span>Design</span>
+                            <button id="btn-mode-design" class="mode-btn" data-mode="DESIGN">
+                                <div class="mode-icon"><i class="fas fa-tshirt"></i></div>
+                                <div class="mode-info">
+                                    <span class="mode-name">Design</span>
+                                    <span class="mode-desc">Images with annotations</span>
+                                </div>
                             </button>
-                                                    </div>
+                        </div>
 
                         <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" hidden />
                     </div>
 
-                    <div class="upload-help">
-                        <p><strong>DOCUMENT:</strong> Invoices, orders, receipts → structured JSON</p>
-                        <p><strong>DESIGN:</strong> Garment images with annotations → suggested changes</p>
-                    </div>
+                    
                 </section>
 
-                <section id="detail-section" class="panel panel-detail hidden">
+                <!-- Detail Section -->
+                <section id="detail-section" class="detail-section hidden">
                     <div class="detail-header">
-                        <div>
-                            <h2 id="detail-file-name">No file selected</h2>
-                            <p id="detail-meta" class="meta"></p>
+                        <div class="detail-info">
+                            <div class="file-icon">
+                                <i class="fas fa-file-pdf"></i>
+                            </div>
+                            <div class="file-details">
+                                <h2 id="detail-file-name">No file selected</h2>
+                                <p id="detail-meta" class="file-meta"></p>
+                            </div>
                         </div>
                         <div class="detail-actions">
                             <button id="btn-refresh-job" class="btn-secondary">
@@ -80,15 +125,256 @@
                         </div>
                     </div>
 
-                    <div class="detail-body">
-                        <div class="detail-column">
-                            <h3>Results (JSON)</h3>
-                            <textarea id="results-editor" placeholder="Results will appear here..."></textarea>
+                    <div id="detail-processing" class="detail-processing hidden">
+                        <div class="spinner"></div>
+                        <div class="detail-processing-text">
+                            <h3>Processing document…</h3>
+                            <p>Please wait while we extract and structure the information.</p>
                         </div>
-                        <div class="detail-column">
-                            <h3>Preview</h3>
-                            <div id="preview" class="preview">
-                                <p class="empty">Select a job to see details</p>
+                    </div>
+
+                    <!-- Tab Navigation -->
+                    <div class="detail-tabs" id="detail-tabs">
+                        <button class="tab-btn active" data-tab="editor">
+                            <i class="fas fa-edit"></i>
+                            <span>Editor</span>
+                        </button>
+                        <button class="tab-btn" data-tab="preview">
+                            <i class="fas fa-eye"></i>
+                            <span>Final Preview</span>
+                        </button>
+                        <button class="tab-btn" data-tab="json">
+                            <i class="fas fa-code"></i>
+                            <span>JSON</span>
+                        </button>
+                    </div>
+
+                    <div class="detail-body">
+                        <!-- Editor Tab (Combined PDF + Editable Content) -->
+                        <div class="tab-content active" id="tab-editor">
+                            <div class="editor-container">
+                                <!-- Left: PDF Viewer -->
+                                <div class="editor-pdf-panel">
+                                    <div class="editor-panel-header">
+                                        <h4><i class="fas fa-file-pdf"></i> Source Document</h4>
+                                        <div class="editor-pdf-controls">
+                                            <button class="btn-tool btn-sm" id="btn-editor-zoom-out" title="Zoom Out">
+                                                <i class="fas fa-search-minus"></i>
+                                            </button>
+                                            <span class="editor-zoom-level" id="editor-zoom-level">100%</span>
+                                            <button class="btn-tool btn-sm" id="btn-editor-zoom-in" title="Zoom In">
+                                                <i class="fas fa-search-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="editor-pdf-nav">
+                                        <button class="btn-page" id="btn-editor-prev-page"><i class="fas fa-chevron-left"></i></button>
+                                        <span class="page-indicator">Page <span id="editor-current-page">1</span> of <span id="editor-total-pages">1</span></span>
+                                        <button class="btn-page" id="btn-editor-next-page"><i class="fas fa-chevron-right"></i></button>
+                                    </div>
+                                    <div class="editor-pdf-workspace">
+                                        <div class="editor-canvas-wrapper" id="editor-canvas-wrapper">
+                                            <canvas id="editor-pdf-canvas"></canvas>
+                                            <canvas id="editor-overlay-canvas"></canvas>
+                                            <div class="editor-loading hidden" id="editor-loading">
+                                                <div class="spinner"></div>
+                                                <span>Loading...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="editor-pdf-actions">
+                                        <span class="editor-hint"><i class="fas fa-info-circle"></i> Draw a rectangle to select a region</span>
+                                        <button class="btn-primary btn-sm" id="btn-editor-extract" disabled>
+                                            <i class="fas fa-plus"></i> Add Selection
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Right: Editable Content -->
+                                <div class="editor-content-panel">
+                                    <div class="editor-panel-header">
+                                        <h4><i class="fas fa-list-alt"></i> Extracted Content</h4>
+                                        <button class="btn-secondary btn-sm" id="btn-add-text-block">
+                                            <i class="fas fa-plus"></i> Add Text
+                                        </button>
+                                    </div>
+                                    <div class="editor-content-list" id="editor-content-list">
+                                        <div class="empty-state small">
+                                            <i class="fas fa-mouse-pointer"></i>
+                                            <p>Select regions from the PDF to extract content</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Final Preview Tab -->
+                        <div class="tab-content" id="tab-preview">
+                            <div id="preview" class="preview-container">
+                                <div class="empty-state">
+                                    <i class="fas fa-file-alt"></i>
+                                    <p>Select a job to view details</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Legacy Document Tab (hidden) -->
+                        <div class="tab-content hidden" id="tab-document">
+                            <div class="document-viewer-container">
+                                <div class="document-toolbar">
+                                    <div class="doc-toolbar-left">
+                                        <button class="btn-tool" id="btn-doc-zoom-out" title="Zoom Out">
+                                            <i class="fas fa-search-minus"></i>
+                                        </button>
+                                        <span class="doc-zoom-level" id="doc-zoom-level">100%</span>
+                                        <button class="btn-tool" id="btn-doc-zoom-in" title="Zoom In">
+                                            <i class="fas fa-search-plus"></i>
+                                        </button>
+                                        <div class="toolbar-divider"></div>
+                                        <button class="btn-tool" id="btn-doc-fit-width" title="Fit Width">
+                                            <i class="fas fa-arrows-alt-h"></i>
+                                        </button>
+                                    </div>
+                                    <div class="doc-toolbar-center">
+                                        <button class="btn-page" id="btn-doc-prev-page"><i class="fas fa-chevron-left"></i></button>
+                                        <span class="page-indicator">Page <span id="doc-current-page">1</span> of <span id="doc-total-pages">1</span></span>
+                                        <button class="btn-page" id="btn-doc-next-page"><i class="fas fa-chevron-right"></i></button>
+                                    </div>
+                                    <div class="doc-toolbar-right">
+                                        <button class="btn-tool active" id="btn-doc-select-mode" title="Select Region">
+                                            <i class="fas fa-crop-alt"></i>
+                                            <span>Select</span>
+                                        </button>
+                                        <button class="btn-tool" id="btn-doc-extract-region" disabled title="Extract Text from Selection">
+                                            <i class="fas fa-file-export"></i>
+                                            <span>Extract</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="document-workspace">
+                                    <div class="document-canvas-wrapper" id="doc-canvas-wrapper">
+                                        <canvas id="doc-pdf-canvas"></canvas>
+                                        <canvas id="doc-overlay-canvas"></canvas>
+                                        <div class="doc-loading hidden" id="doc-loading">
+                                            <div class="spinner"></div>
+                                            <span>Loading document...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="document-extraction-panel hidden" id="doc-extraction-panel">
+                                    <div class="extraction-panel-header">
+                                        <h4><i class="fas fa-file-alt"></i> Extraction Results</h4>
+                                        <button class="btn-close" id="btn-close-doc-extraction"><i class="fas fa-times"></i></button>
+                                    </div>
+                                    <div class="extraction-panel-body">
+                                        <div class="extraction-content">
+                                            <div class="extraction-image-section">
+                                                <h5><i class="fas fa-image"></i> Cropped Image</h5>
+                                                <div class="extraction-image-wrapper">
+                                                    <img id="doc-extracted-image" alt="Cropped region" />
+                                                </div>
+                                                <button class="btn-secondary btn-sm" id="btn-download-doc-image">
+                                                    <i class="fas fa-download"></i> Download Image
+                                                </button>
+                                            </div>
+                                            <div class="extraction-text-section">
+                                                <h5><i class="fas fa-font"></i> Extracted Text</h5>
+                                                <pre id="doc-extracted-text"></pre>
+                                            </div>
+                                        </div>
+                                        <div class="extraction-tables-section hidden" id="doc-tables-section">
+                                            <h5><i class="fas fa-table"></i> Extracted Tables</h5>
+                                            <div id="doc-extracted-tables"></div>
+                                        </div>
+                                    </div>
+                                    <div class="extraction-panel-actions">
+                                        <button class="btn-secondary" id="btn-copy-doc-text">
+                                            <i class="fas fa-copy"></i> Copy Text
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PDF Regions Tab -->
+                        <div class="tab-content" id="tab-pdf-regions">
+                            <div class="pdf-regions-container">
+                                <div class="regions-toolbar">
+                                    <button class="btn-tool active" id="btn-auto-detect">
+                                        <i class="fas fa-magic"></i>
+                                        <span>Auto Detect</span>
+                                    </button>
+                                    <button class="btn-tool" id="btn-manual-select">
+                                        <i class="fas fa-draw-polygon"></i>
+                                        <span>Manual Select</span>
+                                    </button>
+                                    <div class="toolbar-divider"></div>
+                                    <button class="btn-tool" id="btn-extract-all">
+                                        <i class="fas fa-layer-group"></i>
+                                        <span>Extract All</span>
+                                    </button>
+                                </div>
+                                
+                                <div class="regions-workspace">
+                                    <div class="pdf-preview-panel">
+                                        <div class="pdf-canvas-wrapper" id="pdf-canvas-wrapper">
+                                            <canvas id="pdf-regions-canvas"></canvas>
+                                            <div class="pdf-loading" id="pdf-loading">
+                                                <div class="spinner"></div>
+                                                <span>Loading document...</span>
+                                            </div>
+                                        </div>
+                                        <div class="pdf-page-nav" id="pdf-page-nav">
+                                            <button class="btn-page" id="btn-prev-page"><i class="fas fa-chevron-left"></i></button>
+                                            <span class="page-indicator">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
+                                            <button class="btn-page" id="btn-next-page"><i class="fas fa-chevron-right"></i></button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="regions-sidebar">
+                                        <div class="regions-header">
+                                            <h3><i class="fas fa-th-list"></i> Detected Regions</h3>
+                                            <span class="regions-count" id="regions-count">0</span>
+                                        </div>
+                                        <div class="regions-list" id="regions-list">
+                                            <div class="empty-state small">
+                                                <i class="fas fa-search"></i>
+                                                <p>Click "Auto Detect" to find regions</p>
+                                            </div>
+                                        </div>
+                                        <div class="regions-actions">
+                                            <button class="btn-extract" id="btn-extract-selected" disabled>
+                                                <i class="fas fa-file-export"></i>
+                                                <span>Extract Selected</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="extraction-results" id="extraction-results" style="display:none">
+                                    <div class="results-header">
+                                        <h3><i class="fas fa-check-circle"></i> Extraction Results</h3>
+                                        <button class="btn-close" id="btn-close-results"><i class="fas fa-times"></i></button>
+                                    </div>
+                                    <div class="results-content" id="extraction-results-content"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- JSON Tab -->
+                        <div class="tab-content" id="tab-json">
+                            <div class="json-editor-container">
+                                <div class="json-toolbar">
+                                    <button class="btn-tool" id="btn-format-json">
+                                        <i class="fas fa-indent"></i>
+                                        <span>Format</span>
+                                    </button>
+                                    <button class="btn-tool" id="btn-copy-json">
+                                        <i class="fas fa-copy"></i>
+                                        <span>Copy</span>
+                                    </button>
+                                </div>
+                                <textarea id="results-editor" placeholder="Results will appear here..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -97,11 +383,17 @@
         </main>
     </div>
 
-    <div id="toast" class="toast hidden"></div>
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="templateDefinitions.js"></script>
     <script src="exportExcel.js"></script>
     <script src="app.js"></script>
+    <script src="pdfRegions.js"></script>
+    <script src="documentViewer.js"></script>
+    <script src="documentEditor.js"></script>
 </body>
 </html>

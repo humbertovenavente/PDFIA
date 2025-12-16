@@ -10,14 +10,14 @@ const TEMPLATE_DEFINITIONS = {
     exportFormat: "jcrew",
     sections: [
       { key: "header", title: "Header", type: "fields" },
-      { key: "order_info", title: "1. INFO. DEL ORDEN/ ORDER INFO./오더 정보", type: "fields" },
-      { key: "fabric_info", title: "2. INFO. DE TELA/ FABRIC INFO/ 원자재 정보", type: "fields" },
-      { key: "order_procedure", title: "3. PROCESO DEL ORDEN/ ORDER PROCEDURE/오더 공정 순서", type: "text" },
-      { key: "quantity_lines", title: "4. CANTIDAD POR ESTILO, COLOR & PO/ QTY PER STYLE, COLOR & PO/재단 정보", type: "table" },
-      { key: "cutting_detail_notes", title: "5. DETALLES DE CORTE/ CUTTING DETAIL/재단 작업 디테일", type: "list" },
-      { key: "sewing_detail_notes", title: "6. DETALLES DE OPERACION/ SEWING DETAIL/봉제 작업 디테일", type: "list" },
-      { key: "measurement_rows", title: "7. ESPECIFICACION DE MEDIDAS/ MEASUREMENT SPECIFICATION/치수", type: "table" },
-      { key: "labels_info", title: "8. DETALLES DE ETIQUETAS Y ACABADO/ TRIM & PACKING DETAILS/부자재 및 완성 디테일", type: "fields" }
+      { key: "order_info", title: "1. ORDER INFO", type: "fields" },
+      { key: "fabric_info", title: "2. FABRIC INFO", type: "fields" },
+      { key: "order_procedure", title: "3. ORDER PROCEDURE", type: "text" },
+      { key: "quantity_lines", title: "4. QTY PER STYLE, COLOR & PO", type: "table" },
+      { key: "cutting_detail_notes", title: "5. CUTTING DETAIL", type: "list" },
+      { key: "sewing_detail_notes", title: "6. SEWING DETAIL", type: "list" },
+      { key: "measurement_rows", title: "7. MEASUREMENT SPECIFICATION", type: "table" },
+      { key: "labels_info", title: "8. TRIM & PACKING DETAILS", type: "fields" }
     ]
   },
 
@@ -27,13 +27,13 @@ const TEMPLATE_DEFINITIONS = {
     exportFormat: "korean",
     sections: [
       { key: "header", title: "Header", type: "fields" },
-      { key: "order_info", title: "오더 정보/ Informacion del orden/ Order Information", type: "fields" },
-      { key: "fabric_info", title: "원자재정보/ Informacion de Tela/ Fabric Information", type: "fields" },
-      { key: "trim_fabric", title: "부속/Tela sec/Trim Fabric", type: "list" },
-      { key: "quantity_lines", title: "스타일, 색상, PO 별 수량/ Cantidad por estilo, color & PO", type: "table" },
+      { key: "order_info", title: "Order Information", type: "fields" },
+      { key: "fabric_info", title: "Fabric Information", type: "fields" },
+      { key: "trim_fabric", title: "Trim Fabric", type: "list" },
+      { key: "quantity_lines", title: "Quantity by Style, Color & PO", type: "table" },
       { key: "yield_info", title: "요척", type: "fields" },
-      { key: "order_procedure", title: "PROCESO DE PRODUCCION", type: "text" },
-      { key: "measurement_rows", title: "치수/ Especificacion de medidas/ Measurement Specification", type: "table" },
+      { key: "order_procedure", title: "Production Process", type: "text" },
+      { key: "measurement_rows", title: "Measurement Specification", type: "table" },
       { key: "important_notes", title: "IMPORTANT INFORMATION", type: "list" }
     ]
   },
@@ -43,12 +43,12 @@ const TEMPLATE_DEFINITIONS = {
     name: "Sewing Worksheet (Target Style)",
     exportFormat: "target",
     sections: [
-      { key: "header", title: "ORDEN DE TRABAJO", type: "fields" },
+      { key: "header", title: "SEWING WORKSHEET", type: "fields" },
       { key: "order_info", title: "Order Information", type: "fields" },
-      { key: "quantity_lines", title: "CANTIDAD DE ORDEN", type: "table" },
-      { key: "cutting_detail_notes", title: "CORTE / 재단", type: "list" },
-      { key: "sewing_detail_notes", title: "COSTURA / 봉제", type: "list" },
-      { key: "order_procedure", title: "PROCESO", type: "text" }
+      { key: "quantity_lines", title: "ORDER QUANTITY", type: "table" },
+      { key: "cutting_detail_notes", title: "CUTTING", type: "list" },
+      { key: "sewing_detail_notes", title: "SEWING", type: "list" },
+      { key: "order_procedure", title: "PROCESS", type: "text" }
     ]
   },
 
@@ -58,14 +58,14 @@ const TEMPLATE_DEFINITIONS = {
     exportFormat: "jcrew",
     sections: [
       { key: "header", title: "Header", type: "fields" },
-      { key: "order_info", title: "1. INFO. DEL ORDEN/ ORDER INFO./오더 정보", type: "fields" },
-      { key: "fabric_info", title: "2. INFO. DE TELA/ FABRIC INFO/ 원자재 정보", type: "fields" },
-      { key: "order_procedure", title: "3. PROCESO DEL ORDEN/ ORDER PROCEDURE/오더 공정 순서", type: "text" },
-      { key: "quantity_lines", title: "4. CANTIDAD POR ESTILO, COLOR & PO/ QTY PER STYLE, COLOR & PO/재단 정보", type: "table" },
-      { key: "cutting_detail_notes", title: "5. DETALLES DE CORTE/ CUTTING DETAIL/재단 작업 디테일", type: "list" },
-      { key: "sewing_detail_notes", title: "6. DETALLES DE OPERACION/ SEWING DETAIL/봉제 작업 디테일", type: "list" },
-      { key: "measurement_rows", title: "7. ESPECIFICACION DE MEDIDAS/ MEASUREMENT SPECIFICATION/치수", type: "table" },
-      { key: "labels_info", title: "8. DETALLES DE ETIQUETAS Y ACABADO/ TRIM & PACKING DETAILS/부자재 및 완성 디테일", type: "fields" }
+      { key: "order_info", title: "1. ORDER INFO", type: "fields" },
+      { key: "fabric_info", title: "2. FABRIC INFO", type: "fields" },
+      { key: "order_procedure", title: "3. ORDER PROCEDURE", type: "text" },
+      { key: "quantity_lines", title: "4. QTY PER STYLE, COLOR & PO", type: "table" },
+      { key: "cutting_detail_notes", title: "5. CUTTING DETAIL", type: "list" },
+      { key: "sewing_detail_notes", title: "6. SEWING DETAIL", type: "list" },
+      { key: "measurement_rows", title: "7. MEASUREMENT SPECIFICATION", type: "table" },
+      { key: "labels_info", title: "8. TRIM & PACKING DETAILS", type: "fields" }
     ]
   },
 
@@ -88,35 +88,35 @@ const TEMPLATE_DEFINITIONS = {
 // Field definitions for each section
 const FIELD_DEFINITIONS = {
   header: {
-    contact: { label: "CONTACTO/CONTACT/담당자", type: "text" },
-    document_date: { label: "FECHA", type: "date" },
+    contact: { label: "CONTACT", type: "text" },
+    document_date: { label: "DATE", type: "date" },
     revised_date: { label: "REVISED", type: "date" },
-    requested_by: { label: "SOLICITADO POR", type: "text" },
-    work_plant: { label: "PLANTA DE TRABAJO", type: "text" },
+    requested_by: { label: "REQUESTED BY", type: "text" },
+    work_plant: { label: "WORK PLANT", type: "text" },
     work_plant_address: { label: "Address", type: "text" },
     author: { label: "작성자", type: "text" }
   },
   order_info: {
     file: { label: "#FILE", type: "text" },
-    buyer: { label: "CLIENTE/BUYER/바이어", type: "text" },
-    style: { label: "STYLE #/ # ESTILO", type: "text" },
-    product: { label: "PRODUCTO/PRODUCT/제품", type: "text" },
-    season: { label: "TEMPORADA/SEASON", type: "text" },
-    qty: { label: "CANTIDAD/QTY/수량", type: "number" },
-    ship_date: { label: "ENTREGA/SHIPDATE/납기", type: "date" },
+    buyer: { label: "BUYER", type: "text" },
+    style: { label: "STYLE #", type: "text" },
+    product: { label: "PRODUCT", type: "text" },
+    season: { label: "SEASON", type: "text" },
+    qty: { label: "QTY", type: "number" },
+    ship_date: { label: "SHIP DATE", type: "date" },
     delivery: { label: "DELIVERY", type: "date" },
-    cm_cost: { label: "COSTO/CM/공임", type: "text" },
+    cm_cost: { label: "CM COST", type: "text" },
     po: { label: "PO #", type: "text" }
   },
   fabric_info: {
-    yarn: { label: "HILAZA/YARN/사종", type: "text" },
-    fabric: { label: "TELA 1/FABRIC/원단", type: "text" },
-    width: { label: "ANCHO/WIDTH/폭", type: "text" },
-    weight: { label: "PESO/WEIGHT/중량", type: "text" },
-    fabric2: { label: "TELA 2/FABRIC2/원단2", type: "text" },
-    width2: { label: "ANCHO 2/WIDTH 2/폭", type: "text" },
+    yarn: { label: "YARN", type: "text" },
+    fabric: { label: "FABRIC 1", type: "text" },
+    width: { label: "WIDTH", type: "text" },
+    weight: { label: "WEIGHT", type: "text" },
+    fabric2: { label: "FABRIC 2", type: "text" },
+    width2: { label: "WIDTH 2", type: "text" },
     rib: { label: "RIB/부속", type: "text" },
-    yield_total: { label: "CONSUMO/YIELD/요척", type: "text" },
+    yield_total: { label: "YIELD", type: "text" },
     body_width: { label: "BODY 원단 폭", type: "text" }
   },
   labels_info: {
@@ -155,7 +155,7 @@ const TABLE_COLUMNS = {
     { key: "total", label: "TOTAL", width: 10, numeric: true }
   ],
   measurement_rows: [
-    { key: "name", label: "PUNTOS DE MEDIDA / Measurement Points", width: 25 },
+    { key: "name", label: "Measurement Points", width: 25 },
     { key: "tolerance", label: "TOL (-/+)", width: 10, numeric: true },
     { key: "xxs", label: "XXS (2/3)", width: 8, numeric: true },
     { key: "xs", label: "XS (4/5)", width: 8, numeric: true },

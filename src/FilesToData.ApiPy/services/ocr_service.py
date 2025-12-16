@@ -1,8 +1,11 @@
 import os
 import base64
 import io
+import time
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 from typing import Optional, List, Dict, Any, Tuple
 from pypdf import PdfReader
+import requests
 
 # Optional imports for image OCR
 try:
@@ -33,6 +36,178 @@ class OcrService:
         tesseract_path = os.getenv("TESSERACT_PATH", "").strip()
         if tesseract_path and HAS_TESSERACT:
             pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
+        self._azure_di_endpoint = os.getenv("AZURE_DI_ENDPOINT", "").strip()
+        self._azure_di_key = os.getenv("AZURE_DI_KEY", "").strip()
+        self._azure_di_model = os.getenv("AZURE_DI_MODEL", "prebuilt-layout").strip() or "prebuilt-layout"
+        self._azure_di_api_version = os.getenv("AZURE_DI_API_VERSION", "2024-11-30").strip() or "2024-11-30"
+        self._azure_di_locale = os.getenv("AZURE_DI_LOCALE", "es").strip() or "es"
+        self._azure_di_timeout_seconds = int((os.getenv("AZURE_DI_TIMEOUT_SECONDS", "120").strip() or "120"))
+        self._azure_di_poll_timeout_seconds = int((os.getenv("AZURE_DI_POLL_TIMEOUT_SECONDS", "180").strip() or "180"))
+        self._azure_di_poll_interval_seconds = float((os.getenv("AZURE_DI_POLL_INTERVAL_SECONDS", "2.5").strip() or "2.5"))
+        self._azure_di_output_content_format = os.getenv("AZURE_DI_OUTPUT_CONTENT_FORMAT", "text").strip() or "text"
+
+    def _azure_di_is_enabled(self) -> bool:
+        return bool(self._azure_di_endpoint and self._azure_di_key)
+
+    def _azure_di_headers(self) -> Dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "Ocp-Apim-Subscription-Key": self._azure_di_key,
+            "api-key": self._azure_di_key,
+        }
+
+    def _azure_di_analyze_document(self, file_bytes: bytes) -> Dict[str, Any]:
+        endpoint = self._azure_di_endpoint.rstrip("/")
+        url = f"{endpoint}/documentintelligence/documentModels/{self._azure_di_model}:analyze"
+
+        query = {
+            "api-version": self._azure_di_api_version,
+            "output": "figures",
+        }
+        if self._azure_di_locale:
+            query["locale"] = self._azure_di_locale
+        if self._azure_di_output_content_format:
+            query["outputContentFormat"] = self._azure_di_output_content_format
+
+        url = f"{url}?{urlencode(query)}"
+
+        payload = {"base64Source": base64.b64encode(file_bytes).decode("utf-8")}
+
+        resp = requests.post(
+            url,
+            headers=self._azure_di_headers(),
+            json=payload,
+            timeout=self._azure_di_timeout_seconds,
+        )
+
+        if resp.status_code != 202:
+            raise RuntimeError(f"Azure DI analyze failed: {resp.status_code} - {resp.text}")
+
+        op_location = resp.headers.get("Operation-Location") or resp.headers.get("operation-location")
+        if not op_location:
+            raise RuntimeError("Azure DI analyze missing Operation-Location header")
+
+        body = self._azure_di_poll_result(op_location)
+        if isinstance(body, dict):
+            body["operationLocation"] = op_location
+        return body
+
+    def _azure_di_poll_result(self, operation_location: str) -> Dict[str, Any]:
+        started = time.time()
+        last_status: Optional[str] = None
+        last_body: Optional[Dict[str, Any]] = None
+
+        while True:
+            if time.time() - started > float(self._azure_di_poll_timeout_seconds):
+                raise TimeoutError(f"Azure DI poll timed out (last_status={last_status})")
+
+            resp = requests.get(
+                operation_location,
+                headers=self._azure_di_headers(),
+                timeout=self._azure_di_timeout_seconds,
+            )
+
+            if resp.status_code // 100 != 2:
+                raise RuntimeError(f"Azure DI poll failed: {resp.status_code} - {resp.text}")
+
+            body = resp.json() if resp.content else {}
+            last_body = body
+            status = (body.get("status") or "").lower()
+            last_status = status
+
+            if status == "succeeded":
+                return body
+            if status == "failed":
+                raise RuntimeError(f"Azure DI analyze failed: {body}")
+
+            retry_after = resp.headers.get("retry-after") or resp.headers.get("Retry-After")
+            try:
+                wait_seconds = float(retry_after) if retry_after else 0.0
+            except Exception:
+                wait_seconds = 0.0
+
+            if wait_seconds <= 0:
+                wait_seconds = self._azure_di_poll_interval_seconds
+
+            time.sleep(wait_seconds)
+
+    def _azure_di_build_figure_url(self, operation_location: str, figure_id: str) -> str:
+        split = urlsplit(operation_location)
+        query_pairs = dict(parse_qsl(split.query))
+        api_version = query_pairs.get("api-version")
+
+        base_path = split.path.rstrip("/")
+        figure_path = f"{base_path}/figures/{figure_id}"
+        figure_query = urlencode({"api-version": api_version}) if api_version else split.query
+
+        return urlunsplit((split.scheme, split.netloc, figure_path, figure_query, ""))
+
+    def _azure_di_fetch_figure_bytes(self, operation_location: str, figure_id: str) -> bytes:
+        url = self._azure_di_build_figure_url(operation_location, figure_id)
+        resp = requests.get(
+            url,
+            headers=self._azure_di_headers(),
+            timeout=self._azure_di_timeout_seconds,
+        )
+        if resp.status_code // 100 != 2:
+            raise RuntimeError(f"Azure DI figure fetch failed: {resp.status_code} - {resp.text}")
+        return resp.content
+
+    def _azure_di_extract_text_and_figures(self, file_bytes: bytes) -> Dict[str, Any]:
+        analysis = self._azure_di_analyze_document(file_bytes)
+
+        analyze_result = analysis.get("analyzeResult") or {}
+        content = analyze_result.get("content") or ""
+        figures = analyze_result.get("figures") or []
+
+        op_location = analysis.get("operationLocation") or analysis.get("operation-location")
+
+        extracted_images: List[Dict[str, Any]] = []
+        for fig in figures:
+            fig_id = fig.get("id")
+            if not fig_id:
+                continue
+
+            try:
+                fig_bytes = self._azure_di_fetch_figure_bytes(op_location, fig_id) if op_location else b""
+            except Exception:
+                fig_bytes = b""
+
+            data_url = None
+            if fig_bytes:
+                img_b64 = base64.b64encode(fig_bytes).decode("utf-8")
+                data_url = f"data:image/png;base64,{img_b64}"
+
+            page = None
+            try:
+                parts = str(fig_id).split(".", 1)
+                page = int(parts[0]) if parts and parts[0].isdigit() else None
+            except Exception:
+                page = None
+
+            ocr_text = ""
+            if fig.get("caption") and isinstance(fig.get("caption"), dict):
+                ocr_text = (fig.get("caption") or {}).get("content") or ""
+
+            extracted_images.append(
+                {
+                    "page": page or 1,
+                    "index": len(extracted_images) + 1,
+                    "width": 0,
+                    "height": 0,
+                    "format": "png",
+                    "ocr_text": (ocr_text or "").strip(),
+                    "data_url": data_url,
+                    "azure_figure_id": fig_id,
+                }
+            )
+
+        return {
+            "text": content.strip(),
+            "images_extracted": extracted_images,
+            "ocr_method": "azure_document_intelligence",
+        }
 
     def _refine_bbox_to_content(self, gray_img, x: int, y: int, w: int, h: int, img_width: int, img_height: int) -> Tuple[int, int, int, int]:
         if not HAS_OPENCV:
@@ -620,27 +795,36 @@ class OcrService:
         }
         
         if ext == "pdf":
-            # Get text layer
-            text_layer = self._try_extract_pdf_text_layer(file_bytes)
-            if text_layer:
-                result["text"] = text_layer
-                result["ocr_method"] = "pdf_text_layer"
-            
-            # Extract images and OCR them
-            image_results = self._extract_images_with_details(file_bytes)
-            result["images_extracted"] = image_results
-            
-            # Append image OCR text to main text
-            if image_results:
-                image_texts = [img["ocr_text"] for img in image_results if img.get("ocr_text")]
-                if image_texts:
-                    if result["text"]:
-                        result["text"] += "\n\n--- TEXTO DE IMÁGENES (OCR) ---\n"
-                    result["text"] += "\n".join(image_texts)
-                    if result["ocr_method"] == "pdf_text_layer":
-                        result["ocr_method"] = "pdf_text_layer+image_ocr"
-                    else:
-                        result["ocr_method"] = "image_ocr"
+            if self._azure_di_is_enabled():
+                try:
+                    azure_result = self._azure_di_extract_text_and_figures(file_bytes)
+                    if azure_result.get("text"):
+                        result["text"] = azure_result.get("text") or ""
+                        result["ocr_method"] = azure_result.get("ocr_method") or "azure_document_intelligence"
+                    result["images_extracted"] = azure_result.get("images_extracted") or []
+                except Exception:
+                    pass
+
+            if not result.get("text"):
+                text_layer = self._try_extract_pdf_text_layer(file_bytes)
+                if text_layer:
+                    result["text"] = text_layer
+                    result["ocr_method"] = "pdf_text_layer"
+
+            if not result.get("images_extracted"):
+                image_results = self._extract_images_with_details(file_bytes)
+                result["images_extracted"] = image_results
+
+                if image_results:
+                    image_texts = [img["ocr_text"] for img in image_results if img.get("ocr_text")]
+                    if image_texts:
+                        if result["text"]:
+                            result["text"] += "\n\n--- TEXTO DE IMÁGENES (OCR) ---\n"
+                        result["text"] += "\n".join(image_texts)
+                        if result["ocr_method"] == "pdf_text_layer":
+                            result["ocr_method"] = "pdf_text_layer+image_ocr"
+                        else:
+                            result["ocr_method"] = "image_ocr"
         else:
             # Single image file
             ocr_text = self._extract_from_image(file_bytes)
@@ -718,6 +902,7 @@ class OcrService:
         width: int,
         height: int,
         use_claude: bool = False,
+        prefer_method: str = "auto",
     ) -> Dict[str, Any]:
         """
         Extract text from a specific region (ROI) of an image.
@@ -728,7 +913,8 @@ class OcrService:
             y: Top coordinate of the ROI
             width: Width of the ROI
             height: Height of the ROI
-            use_claude: If True, use Claude Vision for OCR; otherwise use Tesseract
+            use_claude: If True, use Claude Vision for OCR (legacy param)
+            prefer_method: 'auto' (Azure DI -> Claude -> Tesseract), 'azure', 'claude', 'tesseract'
             
         Returns:
             Dict with 'text', 'roi', 'method', and optionally 'cropped_image' (base64)
@@ -739,6 +925,7 @@ class OcrService:
             "method": "none",
             "error": None,
             "cropped_image": None,
+            "tables": [],  # List of extracted tables
         }
         
         try:
@@ -776,26 +963,142 @@ class OcrService:
             cropped_b64 = base64.b64encode(cropped_bytes).decode("utf-8")
             result["cropped_image"] = f"data:image/png;base64,{cropped_b64}"
             
-            # Perform OCR
+            # Handle legacy use_claude parameter
             if use_claude:
-                # Use Claude Vision for OCR
-                ocr_text = self._ocr_with_claude(cropped_bytes)
-                result["method"] = "claude_vision"
-            else:
-                # Use Tesseract
-                if HAS_TESSERACT:
-                    ocr_text = self._ocr_with_tesseract(cropped_bytes)
-                    result["method"] = "tesseract"
-                else:
-                    result["error"] = "Tesseract not available. Set use_claude=true or install Tesseract."
-                    return result
+                prefer_method = "claude"
             
-            result["text"] = ocr_text.strip() if ocr_text else ""
+            # Perform OCR with fallback chain: Azure DI -> Claude -> Tesseract
+            ocr_text = ""
+            methods_tried = []
+            
+            if prefer_method in ("auto", "azure"):
+                # Try Azure Document Intelligence first
+                if self._azure_di_is_enabled():
+                    try:
+                        azure_result = self._ocr_with_azure_di_full(cropped_bytes)
+                        azure_text = azure_result.get("text", "")
+                        azure_tables = azure_result.get("tables", [])
+                        if azure_text and not azure_text.startswith("["):
+                            result["method"] = "azure_document_intelligence"
+                            result["text"] = azure_text.strip()
+                            result["tables"] = azure_tables
+                            return result
+                        # Azure returned no text or an error marker -> allow fallback to Claude/Tesseract
+                        methods_tried.append("azure_di")
+                        ocr_text = ""
+                    except Exception as e:
+                        methods_tried.append(f"azure_di_error:{str(e)[:50]}")
+                        ocr_text = ""
+            
+            if prefer_method in ("auto", "claude") and not ocr_text:
+                # Try Claude Vision
+                claude_key = os.getenv("CLAUDE_API_KEY", "").strip()
+                if claude_key:
+                    try:
+                        ocr_text = self._ocr_with_claude(cropped_bytes)
+                        if ocr_text and not ocr_text.startswith("["):
+                            result["method"] = "claude_vision"
+                            result["text"] = ocr_text.strip()
+                            return result
+                        methods_tried.append("claude")
+                    except Exception as e:
+                        methods_tried.append(f"claude_error:{str(e)[:50]}")
+            
+            if prefer_method in ("auto", "tesseract") and not ocr_text:
+                # Try Tesseract as last resort
+                if HAS_TESSERACT:
+                    try:
+                        ocr_text = self._ocr_with_tesseract(cropped_bytes)
+                        if ocr_text and not ocr_text.startswith("["):
+                            result["method"] = "tesseract"
+                            result["text"] = ocr_text.strip()
+                            return result
+                        methods_tried.append("tesseract")
+                    except Exception as e:
+                        methods_tried.append(f"tesseract_error:{str(e)[:50]}")
+            
+            # If we got here, no method succeeded
+            if not ocr_text:
+                available_methods = []
+                if self._azure_di_is_enabled():
+                    available_methods.append("Azure DI")
+                if os.getenv("CLAUDE_API_KEY", "").strip():
+                    available_methods.append("Claude")
+                if HAS_TESSERACT:
+                    available_methods.append("Tesseract")
+                
+                if not available_methods:
+                    result["error"] = "No OCR method available. Configure AZURE_DI_KEY, CLAUDE_API_KEY, or install Tesseract."
+                else:
+                    result["error"] = f"OCR failed with available methods: {', '.join(methods_tried)}"
+            else:
+                result["text"] = ocr_text.strip()
             
         except Exception as e:
             result["error"] = str(e)
         
         return result
+
+    def _ocr_with_azure_di(self, image_bytes: bytes) -> str:
+        """Use Azure Document Intelligence for OCR on image bytes. Returns text only."""
+        result = self._ocr_with_azure_di_full(image_bytes)
+        return result.get("text", "")
+
+    def _ocr_with_azure_di_full(self, image_bytes: bytes) -> Dict[str, Any]:
+        """Use Azure Document Intelligence for OCR on image bytes. Returns text and tables."""
+        if not self._azure_di_is_enabled():
+            return {"text": "[Azure DI not configured]", "tables": []}
+        
+        try:
+            # Use the analyze document endpoint with the image
+            result = self._azure_di_analyze_document(image_bytes)
+            
+            # Extract text content from the result
+            analyze_result = result.get("analyzeResult", {})
+            content = analyze_result.get("content", "")
+            
+            if not content:
+                # Fallback: try to get text from paragraphs
+                paragraphs = analyze_result.get("paragraphs", [])
+                if paragraphs:
+                    texts = [p.get("content", "") for p in paragraphs]
+                    content = "\n".join(texts).strip()
+            
+            # Extract tables
+            tables = []
+            raw_tables = analyze_result.get("tables", [])
+            for table in raw_tables:
+                row_count = table.get("rowCount", 0)
+                col_count = table.get("columnCount", 0)
+                cells = table.get("cells", [])
+                
+                # Build a 2D array for the table
+                table_data = [[None for _ in range(col_count)] for _ in range(row_count)]
+                headers = []
+                
+                for cell in cells:
+                    row_idx = cell.get("rowIndex", 0)
+                    col_idx = cell.get("columnIndex", 0)
+                    cell_content = cell.get("content", "")
+                    kind = cell.get("kind", "content")
+                    
+                    if row_idx < row_count and col_idx < col_count:
+                        table_data[row_idx][col_idx] = cell_content
+                    
+                    # Track header cells
+                    if kind == "columnHeader" and row_idx == 0:
+                        headers.append(cell_content)
+                
+                tables.append({
+                    "rows": table_data,
+                    "headers": headers if headers else (table_data[0] if table_data else []),
+                    "rowCount": row_count,
+                    "columnCount": col_count
+                })
+            
+            return {"text": content.strip() if content else "", "tables": tables}
+        except Exception as e:
+            return {"text": f"[Azure DI OCR error: {str(e)}]", "tables": []}
 
     def _ocr_with_claude(self, image_bytes: bytes) -> str:
         """Use Claude Vision API for OCR on image bytes."""
