@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20251216-8" />
 </head>
 <body>
     <div class="app">
@@ -60,9 +60,6 @@
                     <p class="page-subtitle">Extract structured data from your documents</p>
                 </div>
                 <div class="header-right">
-                    <button class="btn-icon" title="Settings">
-                        <i class="fas fa-cog"></i>
-                    </button>
                 </div>
             </header>
 
@@ -118,21 +115,13 @@
                             </div>
                         </div>
                         <div class="detail-actions">
-                            <button id="btn-refresh-job" class="btn-secondary">
-                                <i class="fas fa-sync-alt"></i>
-                                <span>Refresh</span>
-                            </button>
                         </div>
                     </div>
 
                     <!-- Processing overlay removed - now using incremental editing -->
 
-                    <!-- Tab Navigation - Only Editor tab now -->
-                    <div class="detail-tabs" id="detail-tabs">
-                        <button class="tab-btn active" data-tab="editor">
-                            <i class="fas fa-edit"></i>
-                            <span>Editor</span>
-                        </button>
+                    <!-- Tab Navigation removed - Editor is the only view -->
+                    <div class="detail-tabs hidden" id="detail-tabs">
                     </div>
 
                     <div class="detail-body">
@@ -158,48 +147,6 @@
                                         <span class="page-indicator">Page <span id="editor-current-page">1</span> of <span id="editor-total-pages">1</span></span>
                                         <button class="btn-page" id="btn-editor-next-page"><i class="fas fa-chevron-right"></i></button>
                                     </div>
-                                    <!-- Annotation Tools -->
-                                    <div class="editor-annotation-tools" id="editor-annotation-tools">
-                                        <div class="annotation-tool-group">
-                                            <button class="btn-annotation active" id="btn-tool-select" title="Select Region (OCR)">
-                                                <i class="fas fa-mouse-pointer"></i>
-                                            </button>
-                                            <button class="btn-annotation" id="btn-tool-draw" title="Draw / Pencil">
-                                                <i class="fas fa-pencil-alt"></i>
-                                            </button>
-                                            <button class="btn-annotation" id="btn-tool-highlight" title="Highlight">
-                                                <i class="fas fa-highlighter"></i>
-                                            </button>
-                                            <button class="btn-annotation" id="btn-tool-strikethrough" title="Strikethrough">
-                                                <i class="fas fa-strikethrough"></i>
-                                            </button>
-                                            <button class="btn-annotation" id="btn-tool-text" title="Add Text">
-                                                <i class="fas fa-font"></i>
-                                            </button>
-                                            <button class="btn-annotation" id="btn-tool-arrow" title="Arrow">
-                                                <i class="fas fa-long-arrow-alt-right"></i>
-                                            </button>
-                                            <button class="btn-annotation" id="btn-tool-eraser" title="Eraser">
-                                                <i class="fas fa-eraser"></i>
-                                            </button>
-                                        </div>
-                                        <div class="annotation-tool-group">
-                                            <input type="color" id="annotation-color" value="#ff0000" title="Color">
-                                            <select id="annotation-size" title="Size">
-                                                <option value="2">Thin</option>
-                                                <option value="4" selected>Medium</option>
-                                                <option value="8">Thick</option>
-                                            </select>
-                                        </div>
-                                        <div class="annotation-tool-group">
-                                            <button class="btn-annotation" id="btn-undo-annotation" title="Undo">
-                                                <i class="fas fa-undo"></i>
-                                            </button>
-                                            <button class="btn-annotation" id="btn-clear-annotations" title="Clear All">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </div>
-                                    </div>
                                     <div class="editor-pdf-workspace">
                                         <div class="editor-canvas-wrapper" id="editor-canvas-wrapper">
                                             <canvas id="editor-pdf-canvas"></canvas>
@@ -212,7 +159,14 @@
                                         </div>
                                     </div>
                                     <div class="editor-pdf-actions">
-                                        <span class="editor-hint"><i class="fas fa-info-circle"></i> Draw a rectangle to select a region</span>
+                                        <div class="editor-extract-mode" role="group" aria-label="Extraction mode">
+                                            <button class="mode-btn active" id="btn-mode-manual" type="button">Manual</button>
+                                            <button class="mode-btn" id="btn-mode-auto" type="button">Auto</button>
+                                        </div>
+                                        <span class="editor-hint" id="editor-hint"><i class="fas fa-info-circle"></i> Draw a rectangle to select a region</span>
+                                        <button class="btn-primary btn-sm hidden" id="btn-auto-scan" type="button">
+                                            <i class="fas fa-magic"></i> Scan Page
+                                        </button>
                                         <button class="btn-primary btn-sm" id="btn-editor-extract" disabled>
                                             <i class="fas fa-plus"></i> Add Selection
                                         </button>
@@ -227,6 +181,25 @@
                                             <i class="fas fa-plus"></i> Add Text
                                         </button>
                                     </div>
+                                    <div class="auto-scan-panel hidden" id="auto-scan-panel">
+                                        <div class="auto-scan-header">
+                                            <div class="auto-scan-title">
+                                                <i class="fas fa-magic"></i>
+                                                <span>Auto Scan</span>
+                                                <span class="auto-scan-sub">(Page <span id="auto-scan-page">1</span>)</span>
+                                            </div>
+                                            <div class="auto-scan-header-actions">
+                                                <button class="btn-secondary btn-sm" id="btn-auto-select-all" type="button">Select All</button>
+                                                <button class="btn-secondary btn-sm" id="btn-auto-select-none" type="button">None</button>
+                                            </div>
+                                        </div>
+                                        <div class="auto-scan-list" id="auto-scan-list"></div>
+                                        <div class="auto-scan-actions">
+                                            <button class="btn-primary btn-sm" id="btn-auto-edit-selected" type="button">
+                                                <i class="fas fa-edit"></i> Edit Selected
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div class="editor-content-list" id="editor-content-list">
                                         <div class="empty-state small">
                                             <i class="fas fa-mouse-pointer"></i>
@@ -236,9 +209,6 @@
                                     <div class="editor-content-actions">
                                         <button class="btn-primary" id="btn-save-changes">
                                             <i class="fas fa-eye"></i> Preview Changes
-                                        </button>
-                                        <button class="btn-secondary" id="btn-download-pdf">
-                                            <i class="fas fa-download"></i> Download PDF
                                         </button>
                                     </div>
                                 </div>
@@ -323,69 +293,8 @@
                             </div>
                         </div>
 
-                        <!-- PDF Regions Tab -->
-                        <div class="tab-content" id="tab-pdf-regions">
-                            <div class="pdf-regions-container">
-                                <div class="regions-toolbar">
-                                    <button class="btn-tool active" id="btn-auto-detect">
-                                        <i class="fas fa-magic"></i>
-                                        <span>Auto Detect</span>
-                                    </button>
-                                    <button class="btn-tool" id="btn-manual-select">
-                                        <i class="fas fa-draw-polygon"></i>
-                                        <span>Manual Select</span>
-                                    </button>
-                                    <div class="toolbar-divider"></div>
-                                    <button class="btn-tool" id="btn-extract-all">
-                                        <i class="fas fa-layer-group"></i>
-                                        <span>Extract All</span>
-                                    </button>
-                                </div>
-                                
-                                <div class="regions-workspace">
-                                    <div class="pdf-preview-panel">
-                                        <div class="pdf-canvas-wrapper" id="pdf-canvas-wrapper">
-                                            <canvas id="pdf-regions-canvas"></canvas>
-                                            <div class="pdf-loading" id="pdf-loading">
-                                                <div class="spinner"></div>
-                                                <span>Loading document...</span>
-                                            </div>
-                                        </div>
-                                        <div class="pdf-page-nav" id="pdf-page-nav">
-                                            <button class="btn-page" id="btn-prev-page"><i class="fas fa-chevron-left"></i></button>
-                                            <span class="page-indicator">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
-                                            <button class="btn-page" id="btn-next-page"><i class="fas fa-chevron-right"></i></button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="regions-sidebar">
-                                        <div class="regions-header">
-                                            <h3><i class="fas fa-th-list"></i> Detected Regions</h3>
-                                            <span class="regions-count" id="regions-count">0</span>
-                                        </div>
-                                        <div class="regions-list" id="regions-list">
-                                            <div class="empty-state small">
-                                                <i class="fas fa-search"></i>
-                                                <p>Click "Auto Detect" to find regions</p>
-                                            </div>
-                                        </div>
-                                        <div class="regions-actions">
-                                            <button class="btn-extract" id="btn-extract-selected" disabled>
-                                                <i class="fas fa-file-export"></i>
-                                                <span>Extract Selected</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="extraction-results" id="extraction-results" style="display:none">
-                                    <div class="results-header">
-                                        <h3><i class="fas fa-check-circle"></i> Extraction Results</h3>
-                                        <button class="btn-close" id="btn-close-results"><i class="fas fa-times"></i></button>
-                                    </div>
-                                    <div class="results-content" id="extraction-results-content"></div>
-                                </div>
-                            </div>
+                        <!-- PDF Regions Tab (Hidden - functionality moved to Editor Auto mode) -->
+                        <div class="tab-content hidden" id="tab-pdf-regions">
                         </div>
 
                     </div>
@@ -403,15 +312,23 @@
         <div class="modal-content modal-large">
             <div class="modal-header">
                 <h3><i class="fas fa-file-pdf"></i> Modified Document Preview</h3>
-                <button class="btn-close" onclick="closePdfPreviewModal()"><i class="fas fa-times"></i></button>
+                <div class="modal-header-actions">
+                    <button class="btn-secondary btn-sm" onclick="openPdfPreviewInNewTab()">
+                        <i class="fas fa-external-link-alt"></i> Open
+                    </button>
+                    <button class="btn-close" onclick="closePdfPreviewModal()"><i class="fas fa-times"></i></button>
+                </div>
             </div>
             <div class="modal-body">
                 <iframe id="pdf-preview-iframe" class="pdf-preview-iframe"></iframe>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closePdfPreviewModal()">Close</button>
-                <button class="btn-primary" onclick="downloadModifiedPdf()">
-                    <i class="fas fa-download"></i> Download PDF
+                <button class="btn-secondary" onclick="downloadModifiedPdf()">
+                    <i class="fas fa-download"></i> Download
+                </button>
+                <button class="btn-primary" id="btn-modal-save-changes" onclick="saveChangesPersistently()">
+                    <i class="fas fa-save"></i> Save Changes
                 </button>
             </div>
         </div>
@@ -421,11 +338,12 @@
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="templateDefinitions.js"></script>
-    <script src="exportExcel.js"></script>
-    <script src="app.js"></script>
-    <script src="pdfRegions.js"></script>
-    <script src="documentViewer.js"></script>
-    <script src="documentEditor.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="templateDefinitions.js?v=20251216-8"></script>
+    <script src="exportExcel.js?v=20251216-8"></script>
+    <script src="app.js?v=20251216-8"></script>
+    <script src="pdfRegions.js?v=20251216-8"></script>
+    <script src="documentViewer.js?v=20251216-8"></script>
+    <script src="documentEditor.js?v=20251216-8"></script>
 </body>
 </html>
