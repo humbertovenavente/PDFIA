@@ -157,6 +157,270 @@ function renderExtractedImagesThumbsFromPage(results, pageNum) {
   `;
 }
 
+function renderTargetBrandsIncPage2(root, prefix, results) {
+  const tablePath = joinPath(prefix, 'table_of_contents');
+  const toggleLabel = state.tocEditorCollapsed ? 'Show editor' : 'Hide editor';
+  const currentResults = results || state.currentResults;
+  const defaultTocColumns = [
+    { key: 'section', label: 'Section', numeric: false },
+    { key: 'page_title', label: 'Page Title', numeric: false },
+  ];
+  const columnsPath = joinPath(prefix, '_toc_columns');
+  let columns = defaultTocColumns;
+  try {
+    const existingColumns = currentResults ? getValueAtPath(currentResults, columnsPath) : null;
+    if (Array.isArray(existingColumns) && existingColumns.length > 0) {
+      const cleaned = existingColumns
+        .filter(c => c && typeof c === 'object' && String(c.key || '').trim() && String(c.label || '').trim())
+        .map(c => ({
+          key: String(c.key).trim(),
+          label: String(c.label).trim(),
+          numeric: !!c.numeric,
+        }));
+      if (cleaned.length > 0) {
+        columns = cleaned;
+      }
+    } else if (currentResults) {
+      setNestedValue(currentResults, columnsPath, defaultTocColumns);
+    }
+  } catch {}
+
+  const sanitizeTocRows = (rows) => {
+    const arr = Array.isArray(rows) ? rows : [];
+    return arr
+      .map(r => (r && typeof r === 'object') ? ({ ...r }) : null)
+      .filter(Boolean)
+      .map(r => {
+        r.section = (r.section == null) ? null : String(r.section).trim();
+        r.page_title = (r.page_title == null) ? null : String(r.page_title).trim();
+        return r;
+      })
+      .filter(r => {
+        const s = (r.section || '').toLowerCase();
+        const pt = (r.page_title || '').toLowerCase();
+        if (!s && !pt) return false;
+        if (s === 'section' || s === 'page title' || s === 'title' || s === 'page') return false;
+        if (s.includes('table of contents') || s.includes('tables of contents')) return false;
+        if (pt.includes('table of contents') || pt.includes('tables of contents')) return false;
+        return true;
+      });
+  };
+
+  const parseTocFromRawText = (rawText) => {
+    const lines = String(rawText || '').split(/\r?\n/).map(l => String(l || '').trim()).filter(Boolean);
+    if (!lines.length) return [];
+    let startIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const low = lines[i].toLowerCase();
+      if (low.includes('table of contents') || low.includes('tables of contents')) {
+        startIdx = i;
+        break;
+      }
+    }
+    if (startIdx === -1) return [];
+
+    // Consume a small window after the header.
+    const windowLines = lines.slice(startIdx, startIdx + 60);
+    const cleaned = windowLines.filter((ln) => {
+      const low = ln.toLowerCase();
+      if (low.includes('table of contents') || low.includes('tables of contents')) return false;
+      if (low === 'section' || low === 'page title' || (low.includes('section') && low.includes('title'))) return false;
+      return true;
+    });
+
+    const out = [];
+    let i = 0;
+    while (i < cleaned.length) {
+      const section = cleaned[i];
+      const next = cleaned[i + 1] || '';
+      const m = next.match(/^(\d{1,3})\s+(.+?)\s*$/);
+
+      if (m) {
+        // Preserve original raw line exactly as it appears (e.g. "1 bill of materials").
+        out.push({ section, page_title: next });
+        i += 2;
+        continue;
+      }
+
+      // OVERVIEW is special in these PDFs: it often has just the title line without a leading page number.
+      if (section && next && section.toLowerCase() !== 'page' && section.toLowerCase() !== 'title') {
+        out.push({ section, page_title: next });
+        i += 2;
+        continue;
+      }
+      i += 1;
+    }
+
+    // Keep only rows that look like a real TOC (at least 3 rows and some page numbers)
+    const numberedCount = out.filter(r => /^\d{1,3}\s+\S/.test(String(r.page_title || ''))).length;
+    if (out.length < 3 || numberedCount === 0) return [];
+    return sanitizeTocRows(out);
+  };
+
+  const pages = typeof getDocumentPages === 'function' ? getDocumentPages(currentResults || {}) : [];
+  const page2 = Array.isArray(pages) ? pages.find((p) => Number(p?.page_number) === 2) : null;
+  const page2Raw = page2?.raw_text || root?.raw_text || currentResults?.raw_text || '';
+
+  // If backend TOC is empty, auto-fill it from raw_text (once per render) so the table is usable.
+  let toc = Array.isArray(root?.table_of_contents) ? root.table_of_contents : [];
+
+  // Migrate old format rows ({page,title}) into the desired display format ({page_title}).
+  if (!state.tocUserEdited && Array.isArray(toc) && toc.length) {
+    let changed = false;
+    const migrated = toc.map((r) => {
+      const row = r && typeof r === 'object' ? { ...r } : {};
+      if (row.page_title == null || String(row.page_title).trim() === '') {
+        const p = row.page;
+        const t = row.title;
+        if (p != null && String(p).trim() !== '' && t != null && String(t).trim() !== '') {
+          row.page_title = `${String(p).trim()} ${String(t).trim()}`.trim();
+          changed = true;
+        } else if (t != null && String(t).trim() !== '') {
+          row.page_title = String(t).trim();
+          changed = true;
+        }
+      }
+      delete row.page;
+      delete row.title;
+      return row;
+    });
+    const sanitizedMigrated = sanitizeTocRows(migrated);
+    if (currentResults && (changed || sanitizedMigrated.length !== migrated.length)) {
+      setNestedValue(currentResults, tablePath, sanitizedMigrated);
+      toc = sanitizedMigrated;
+      syncResultsToEditor();
+    } else {
+      toc = sanitizedMigrated;
+    }
+  }
+
+  const parsedFromRaw = (currentResults && page2Raw) ? parseTocFromRawText(page2Raw) : [];
+
+  const extractLeadingNum = (s) => {
+    const m = String(s || '').trim().match(/^(\d{1,3})\b/);
+    return m ? Number(m[1]) : null;
+  };
+
+  const maxLeadingNum = (rows) => {
+    let m = 0;
+    for (const r of rows || []) {
+      const n = extractLeadingNum(r?.page_title);
+      if (typeof n === 'number' && !Number.isNaN(n) && n > m) m = n;
+    }
+    return m;
+  };
+
+  // Prefer the raw-text TOC when existing TOC looks like PDF page numbers (large) instead of TOC column numbers (small).
+  if (!state.tocUserEdited && currentResults && Array.isArray(parsedFromRaw) && parsedFromRaw.length) {
+    const parsedMax = maxLeadingNum(parsedFromRaw);
+    const existingMax = maxLeadingNum(toc);
+    const shouldReplace =
+      (toc.length === 0) ||
+      (!state.tocUserEdited && parsedMax > 0 && (existingMax === 0 || existingMax > 10 || existingMax > parsedMax));
+
+    if (shouldReplace) {
+      const sanitizedParsed = sanitizeTocRows(parsedFromRaw);
+      setNestedValue(currentResults, tablePath, sanitizedParsed);
+      toc = sanitizedParsed;
+      syncResultsToEditor();
+    }
+  }
+
+  const previewTableHtml = renderEditableTableApp(
+    toc,
+    columns,
+    tablePath,
+    {
+      showRowNumbers: false,
+      forceReadOnly: true,
+    }
+  );
+
+  const editorTableHtml = renderEditableTableApp(
+    toc,
+    columns,
+    tablePath,
+    {
+      showRowNumbers: false,
+      enableRowDrag: true,
+      forceEditable: true,
+    }
+  );
+
+  const basicTableHtml = (() => {
+    const thead = columns.map(c => `<th class="${c.numeric ? 'num' : ''}">${escapeHtml(c.label)}</th>`).join('');
+    const rowsHtml = (Array.isArray(toc) && toc.length)
+      ? toc.map((row, idx) => {
+          const cells = columns.map(c => {
+            const val = row?.[c.key];
+            return `<td class="${c.numeric ? 'num' : ''}">${escapeHtml(fmt(val ?? '') || '—')}</td>`;
+          }).join('');
+          return `<tr>${cells}</tr>`;
+        }).join('')
+      : `<tr><td colspan="${columns.length}"><div class="empty">No data</div></td></tr>`;
+    return `
+      <div class="table-wrap" data-toc-fallback="1">
+        <table class="table">
+          <thead><tr>${thead}</tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    `;
+  })();
+
+  const safePreviewTableHtml = (previewTableHtml && String(previewTableHtml).includes('<table')) ? previewTableHtml : basicTableHtml;
+  const safeEditorTableHtml = (editorTableHtml && String(editorTableHtml).includes('<table')) ? editorTableHtml : basicTableHtml;
+
+  const draggablePreview = `
+    <div draggable="true" ondragstart="handleTocDockDragStart(event)" style="height: 100%;">
+      ${safePreviewTableHtml}
+    </div>
+  `;
+
+  const rightHtml = state.tocEditorDocked
+    ? `${safeEditorTableHtml}`
+    : `
+        <div class="img-editor-drop" id="toc-editor-drop" ondragover="handleTocDockDragOver(event)" ondragleave="handleTocDockDragLeave(event)" ondrop="handleTocDockDrop(event)">
+          <div class="img-editor-drop-hint">Drag the table from Preview and drop it here to edit</div>
+        </div>
+      `;
+
+  const splitHtml = state.tocEditorCollapsed
+    ? `
+        <div class="images-editor">
+          <div class="images-editor-left">
+            <div class="images-editor-title"><span>Table of Contents</span><span></span></div>
+            ${toc.length ? '' : `<div class="img-empty">No table of contents extracted yet.</div>`}
+            ${safePreviewTableHtml}
+          </div>
+        </div>
+      `
+    : `
+        <div class="images-editor">
+          <div class="images-editor-left">
+            <div class="images-editor-title"><span>Preview</span><span></span></div>
+            ${toc.length ? '' : `<div class="img-empty">No table of contents extracted yet.</div>`}
+            ${draggablePreview}
+          </div>
+          <div class="images-editor-right">
+            <div class="images-editor-title"><span>Editor</span><span></span></div>
+            ${rightHtml}
+          </div>
+        </div>
+      `;
+
+  return `
+    <div class="page-card">
+      <div class="images-editor-title">
+        <span>Page 2 — Table of Contents</span>
+        ${(state.tocEditorCollapsed || !state.tocEditorDocked) ? '' : `<button class="btn-secondary btn-sm" onclick="saveResults()" type="button">Save</button>`}
+        <button class="btn-secondary btn-sm" id="btn-toggle-toc-editor" type="button">${escapeHtml(toggleLabel)}</button>
+      </div>
+      ${splitHtml}
+    </div>
+  `;
+}
+
 function renderImageEditorPanel(pageNum) {
   const toggleLabel = state.imageEditorCollapsed ? 'Show editor' : 'Hide editor';
   return `
@@ -359,6 +623,7 @@ function saveImageEditorChanges() {
 function attachExtractedImageEditorHandlers() {
   const toggleBtn = document.getElementById('btn-toggle-image-editor');
   const toggleBtnRight = document.getElementById('btn-toggle-image-editor-right');
+  const toggleTocBtn = document.getElementById('btn-toggle-toc-editor');
 
   const doToggle = () => {
     state.imageEditorCollapsed = !state.imageEditorCollapsed;
@@ -380,6 +645,24 @@ function attachExtractedImageEditorHandlers() {
   }
   if (toggleBtnRight) {
     toggleBtnRight.onclick = doToggle;
+  }
+
+  if (toggleTocBtn) {
+    toggleTocBtn.onclick = () => {
+      state.tocEditorCollapsed = !state.tocEditorCollapsed;
+      state.tocEditorDocked = false;
+      try {
+        localStorage.setItem('tocEditorCollapsed', state.tocEditorCollapsed ? '1' : '0');
+      } catch {}
+      const renderRoot = document.getElementById('template-render-root');
+      if (renderRoot && state.currentResults) {
+        renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
+        setTimeout(() => {
+          attachEditableListeners();
+          attachExtractedImageEditorHandlers();
+        }, 0);
+      }
+    };
   }
 
   const drop = document.getElementById('img-editor-drop');
@@ -572,9 +855,12 @@ function renderTemplateView(mode, results) {
   const pages = getDocumentPages(results);
   const firstPage = pages[0] || { page_number: 1, data: results, raw_text: results?.raw_text };
   const { prefix, templateType } = getTemplateRootInfo(results);
+  const { root } = getTemplateRootInfo(results);
   const t = getPrimaryTemplateType(results) || firstPage?.data?.template_type || templateType || null;
   if (t === 'product_spec' || t === 'target_brands_inc' || (t === 'unknown' && (firstPage?.data?.product_overview || results?.product_overview))) {
-    return `<div class="preview-root">${renderTargetBrandsIncPage1(firstPage, prefix, results)}</div>`;
+    const p1 = renderTargetBrandsIncPage1(firstPage, prefix, results);
+    const p2 = renderTargetBrandsIncPage2(root || firstPage?.data || {}, prefix, results);
+    return `<div class="preview-root">${p1}${p2}</div>`;
   }
   const pagesHtml = pages.map(renderDocumentPage).join('');
   return `<div class="preview-root">${pagesHtml}</div>`;
@@ -607,23 +893,6 @@ if (__originalFetch) {
   };
 }
 
-const state = {
-  mode: 'DOCUMENT',
-  jobs: [],
-  selectedJobId: null,
-  saving: false,
-  currentResults: null, // Store current results for editing
-  editMode: true, // Enable edit mode by default
-  jobPollTimer: null,
-  templateEditorTimer: null,
-  imageEditorCollapsed: false,
-  uploadTemplate: 'auto',
-};
-
-function qs(id) {
-  return document.getElementById(id);
-}
-
 function ensureTemplateViewEl() {
   let el = document.getElementById('template-view');
   if (el) return el;
@@ -635,6 +904,22 @@ function ensureTemplateViewEl() {
   tab.insertBefore(el, tab.firstChild);
   return el;
 }
+
+const state = {
+  mode: 'DOCUMENT',
+  jobs: [],
+  selectedJobId: null,
+  saving: false,
+  currentResults: null, // Store current results for editing
+  editMode: true, // Enable edit mode by default
+  jobPollTimer: null,
+  templateEditorTimer: null,
+  imageEditorCollapsed: false,
+  tocEditorCollapsed: true,
+  tocEditorDocked: false,
+  tocUserEdited: false, // Track user edits to table_of_contents
+  uploadTemplate: 'auto',
+};
 
 function renderTemplateProcessingCard(job) {
   return `
@@ -1133,7 +1418,7 @@ function renderSewingWorksheetPage(page) {
         ${processText ? `<div class="sheet-procedure ${state.editMode ? 'editable-field' : ''}" ${state.editMode ? 'contenteditable="true"' : ''} data-path="${basePath}.order_procedure">${escapeHtml(processText)}</div>` : `<div class="sheet-procedure">CUT - SEW - PACK</div>`}
 
         <div class="sheet-section">4. QTY PER STYLE, COLOR & PO</div>
-        ${renderEditableTable(qtyLines, qtyColumns, `${basePath}.quantity_lines`)}
+        ${renderEditableTableApp(qtyLines, qtyColumns, `${basePath}.quantity_lines`)}
 
         <div class="sheet-section">5. CUTTING DETAIL</div>
         ${renderEditableLines(cutNotes, `${basePath}.cutting_detail_notes`)}
@@ -1142,7 +1427,7 @@ function renderSewingWorksheetPage(page) {
         ${renderEditableLines(sewNotes, `${basePath}.sewing_detail_notes`)}
 
         <div class="sheet-section">7. MEASUREMENT SPECIFICATION</div>
-        ${renderEditableTable(measRows, measColumns, `${basePath}.measurement_rows`)}
+        ${renderEditableTableApp(measRows, measColumns, `${basePath}.measurement_rows`)}
 
         <div class="sheet-section">8. TRIM & PACKING DETAILS</div>
         ${renderLabelsInfo(labelsInfo, sw.trim_packing_notes)}
@@ -1410,6 +1695,14 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
+function qs(id) {
+  return document.getElementById(id);
+}
+
+function qsa(selector, root = document) {
+  return Array.from((root || document).querySelectorAll(selector));
+}
+
 function fmt(value) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number') return new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 }).format(value);
@@ -1473,23 +1766,32 @@ function setNestedValueInRow(obj, path, value) {
   current[parts[parts.length - 1]] = value;
 }
 
-function renderEditableTable(data, columns, tablePath, options = {}) {
+function renderEditableTableApp(data, columns, tablePath, options = {}) {
   const tableId = generateTableId();
   const rows = Array.isArray(data) ? data : [];
-  const { showRowNumbers = false, title = '' } = options;
+  const {
+    showRowNumbers = false,
+    title = '',
+    enableRowDrag = false,
+    forceEditable = false,
+    forceReadOnly = false,
+  } = options;
 
-  if (!state.editMode) {
+  const editable = forceReadOnly ? false : (forceEditable ? true : !!state.editMode);
+
+  if (!editable) {
     // Non-editable mode - simple table
-    if (rows.length === 0) return `<div class="empty">No data</div>`;
     const thead = columns.map(c => `<th class="${c.numeric ? 'num' : ''}">${escapeHtml(c.label)}</th>`).join('');
-    const tbody = rows.map((row, i) => {
-      const cells = columns.map(c => {
-        // Support nested keys with fallbacks for different formats
-        const val = getValueWithFallbacks(row, c.key, c.altKeys);
-        return `<td class="${c.numeric ? 'num' : ''}">${escapeHtml(fmt(val) || '—')}</td>`;
-      }).join('');
-      return `<tr>${showRowNumbers ? `<td>${i + 1}</td>` : ''}${cells}</tr>`;
-    }).join('');
+    const tbody = rows.length
+      ? rows.map((row, i) => {
+          const cells = columns.map(c => {
+            // Support nested keys with fallbacks for different formats
+            const val = getValueWithFallbacks(row, c.key, c.altKeys);
+            return `<td class="${c.numeric ? 'num' : ''}">${escapeHtml(fmt(val) || '—')}</td>`;
+          }).join('');
+          return `<tr>${showRowNumbers ? `<td>${i + 1}</td>` : ''}${cells}</tr>`;
+        }).join('')
+      : `<tr><td colspan="${(showRowNumbers ? 1 : 0) + columns.length}"><div class="empty">No data</div></td></tr>`;
     return `
       <div class="table-wrap">
         <table class="table">
@@ -1533,7 +1835,7 @@ function renderEditableTable(data, columns, tablePath, options = {}) {
       // Support nested keys with fallbacks for different formats
       const val = getValueWithFallbacks(row, c.key, c.altKeys);
       return `
-        <td class="editable-cell ${c.numeric ? 'num' : ''}" contenteditable="true"
+        <td class="editable-cell ${c.numeric ? 'num' : ''}" contenteditable="true" tabindex="0" spellcheck="false" draggable="false" onclick="this.focus()"
             data-table="${tableId}" data-row="${rowIdx}" data-col="${colIdx}" data-key="${c.key}"
             data-path="${tablePath}[${rowIdx}].${c.key}"
             onblur="updateTableCell('${tableId}', '${tablePath}', ${rowIdx}, '${c.key}', this.textContent)">
@@ -1541,12 +1843,26 @@ function renderEditableTable(data, columns, tablePath, options = {}) {
         </td>
       `;
     }).join('');
+
+    const dragAttrs = enableRowDrag
+      ? ` ondragover="handleTableRowDragOver(event)" ondrop="handleTableRowDrop(event, '${tablePath}', ${rowIdx})" `
+      : '';
+
+    const rowNumCell = showRowNumbers
+      ? `<td class="${enableRowDrag ? 'drag-handle' : ''}" ${enableRowDrag ? `draggable="true" ondragstart="handleTableRowDragStart(event, '${tablePath}', ${rowIdx})"` : ''}>${rowIdx + 1}</td>`
+      : '';
+
+    const dragBtn = (!showRowNumbers && enableRowDrag)
+      ? `<button class="btn-delete-row drag-handle" draggable="true" ondragstart="handleTableRowDragStart(event, '${tablePath}', ${rowIdx})" title="Drag row" type="button"><i class="fas fa-grip-vertical"></i></button>`
+      : '';
+
     return `
-      <tr data-row="${rowIdx}">
-        ${showRowNumbers ? `<td>${rowIdx + 1}</td>` : ''}
+      <tr data-row="${rowIdx}" ${dragAttrs}>
+        ${rowNumCell}
         ${cells}
         <td class="row-actions">
-          <button class="btn-delete-row" onclick="deleteTableRow('${tableId}', '${tablePath}', ${rowIdx})" title="Delete row">
+          ${dragBtn}
+          <button class="btn-delete-row" onclick="deleteTableRow('${tableId}', '${tablePath}', ${rowIdx})" title="Delete row" type="button">
             <i class="fas fa-trash"></i>
           </button>
         </td>
@@ -1584,6 +1900,9 @@ function updateTableCell(tableId, tablePath, rowIdx, key, value) {
   }
   
   if (Array.isArray(target) && target[rowIdx]) {
+    if (typeof tablePath === 'string' && tablePath.includes('table_of_contents')) {
+      state.tocUserEdited = true;
+    }
     // Support nested keys like "sizes.xxs_2_3"
     if (key.includes('.')) {
       setNestedValueInRow(target[rowIdx], key, value.trim());
@@ -1591,6 +1910,7 @@ function updateTableCell(tableId, tablePath, rowIdx, key, value) {
       target[rowIdx][key] = value.trim();
     }
     syncResultsToEditor();
+    refreshPreview();
   }
 }
 
@@ -1603,12 +1923,24 @@ function addTableRow(tableId, tablePath) {
   // Handle paths with array notation
   const pathParts = tablePath.replace(/\[(\d+)\]/g, '.$1').split('.');
   let target = state.currentResults;
-  for (const part of pathParts) {
-    if (target[part] === undefined) target[part] = [];
+  for (let i = 0; i < pathParts.length; i++) {
+    const part = pathParts[i];
+    if (i === pathParts.length - 1) {
+      if (target[part] === undefined) target[part] = [];
+      target = target[part];
+      break;
+    }
+    const nextPart = pathParts[i + 1];
+    if (target[part] === undefined) {
+      target[part] = isNaN(nextPart) ? {} : [];
+    }
     target = target[part];
   }
   
   if (Array.isArray(target)) {
+    if (typeof tablePath === 'string' && tablePath.includes('table_of_contents')) {
+      state.tocUserEdited = true;
+    }
     const newRow = {};
     tableInfo.columns.forEach(c => {
       // Support nested keys like "sizes.xxs_2_3"
@@ -1636,6 +1968,9 @@ function deleteTableRow(tableId, tablePath, rowIdx) {
   }
   
   if (Array.isArray(target) && target.length > rowIdx) {
+    if (typeof tablePath === 'string' && tablePath.includes('table_of_contents')) {
+      state.tocUserEdited = true;
+    }
     target.splice(rowIdx, 1);
     syncResultsToEditor();
     refreshPreview();
@@ -1651,17 +1986,36 @@ function addTableColumn(tableId, tablePath) {
   if (!newLabel) return;
   
   tableInfo.columns.push({ key: newKey, label: newLabel, numeric: false });
-  
+
+  const columnsPath = (typeof tablePath === 'string' && /table_of_contents$/.test(tablePath))
+    ? tablePath.replace(/table_of_contents$/, '_toc_columns')
+    : null;
+
   // Handle paths with array notation
   const pathParts = tablePath.replace(/\[(\d+)\]/g, '.$1').split('.');
   let target = state.currentResults;
-  for (const part of pathParts) {
-    if (target[part] === undefined) return;
+  for (let i = 0; i < pathParts.length; i++) {
+    const part = pathParts[i];
+    if (i === pathParts.length - 1) {
+      if (target[part] === undefined) target[part] = [];
+      target = target[part];
+      break;
+    }
+    const nextPart = pathParts[i + 1];
+    if (target[part] === undefined) {
+      target[part] = isNaN(nextPart) ? {} : [];
+    }
     target = target[part];
   }
   
   if (Array.isArray(target)) {
+    if (typeof tablePath === 'string' && tablePath.includes('table_of_contents')) {
+      state.tocUserEdited = true;
+    }
     target.forEach(row => { row[newKey] = ''; });
+    if (columnsPath) {
+      setNestedValue(state.currentResults, columnsPath, tableInfo.columns.map(c => ({ ...c })));
+    }
     syncResultsToEditor();
     refreshPreview();
   }
@@ -1677,6 +2031,10 @@ function deleteTableColumn(tableId, tablePath, colIdx) {
   if (!confirm(`Delete the column "${col.label}"?`)) return;
   
   tableInfo.columns.splice(colIdx, 1);
+
+  const columnsPath = (typeof tablePath === 'string' && /table_of_contents$/.test(tablePath))
+    ? tablePath.replace(/table_of_contents$/, '_toc_columns')
+    : null;
   
   // Handle paths with array notation
   const pathParts = tablePath.replace(/\[(\d+)\]/g, '.$1').split('.');
@@ -1687,7 +2045,13 @@ function deleteTableColumn(tableId, tablePath, colIdx) {
   }
   
   if (Array.isArray(target)) {
+    if (typeof tablePath === 'string' && tablePath.includes('table_of_contents')) {
+      state.tocUserEdited = true;
+    }
     target.forEach(row => { delete row[col.key]; });
+    if (columnsPath) {
+      setNestedValue(state.currentResults, columnsPath, tableInfo.columns.map(c => ({ ...c })));
+    }
     syncResultsToEditor();
     refreshPreview();
   }
@@ -1698,6 +2062,18 @@ function updateColumnHeader(tableId, colIdx, newLabel) {
   if (!tableInfo) return;
   if (tableInfo.columns[colIdx]) {
     tableInfo.columns[colIdx].label = newLabel;
+    try {
+      const tablePath = tableInfo.path;
+      const columnsPath = (typeof tablePath === 'string' && /table_of_contents$/.test(tablePath))
+        ? tablePath.replace(/table_of_contents$/, '_toc_columns')
+        : null;
+      if (columnsPath && state.currentResults) {
+        state.tocUserEdited = true;
+        setNestedValue(state.currentResults, columnsPath, tableInfo.columns.map(c => ({ ...c })));
+        syncResultsToEditor();
+        refreshPreview();
+      }
+    } catch {}
   }
 }
 
@@ -1711,6 +2087,18 @@ function syncResultsToEditor() {
 
 function refreshPreview() {
   if (!state.currentResults) return;
+
+  const templateView = document.getElementById('template-view');
+  const renderRoot = document.getElementById('template-render-root');
+  if (templateView && !templateView.classList.contains('hidden') && renderRoot) {
+    renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
+    setTimeout(() => {
+      attachEditableListeners();
+      attachExtractedImageEditorHandlers();
+    }, 0);
+    return;
+  }
+
   const previewEl = qs('preview');
   const job = state.jobs.find(j => j.id === state.selectedJobId);
   if (previewEl && job) {
@@ -1756,6 +2144,144 @@ function setNestedValue(obj, path, value) {
   current[parts[parts.length - 1]] = value;
 }
 
+function getValueAtPath(obj, path) {
+  if (!obj || !path) return undefined;
+  const parts = path.replace(/\[(\d+)\]/g, '.$1').split('.');
+  let current = obj;
+  for (const part of parts) {
+    if (current == null) return undefined;
+    current = current[part];
+  }
+  return current;
+}
+
+function moveArrayItem(arr, fromIdx, toIdx) {
+  if (!Array.isArray(arr)) return;
+  if (fromIdx === toIdx) return;
+  if (fromIdx < 0 || fromIdx >= arr.length) return;
+  if (toIdx < 0 || toIdx >= arr.length) return;
+  const [item] = arr.splice(fromIdx, 1);
+  const insertAt = fromIdx < toIdx ? toIdx - 1 : toIdx;
+  arr.splice(insertAt, 0, item);
+}
+
+// ===== TABLE ROW DRAG & DROP =====
+window._tableRowDrag = window._tableRowDrag || { tablePath: null, fromIdx: null };
+
+// ===== TOC DOCK (Drag table into right editor panel) =====
+window._tocDockDrag = window._tocDockDrag || { active: false };
+
+function handleTocDockDragStart(evt) {
+  try {
+    window._tocDockDrag = { active: true };
+    if (evt && evt.dataTransfer) {
+      evt.dataTransfer.effectAllowed = 'move';
+      evt.dataTransfer.setData('text/plain', 'toc-dock');
+    }
+  } catch {}
+}
+
+function handleTocDockDragOver(evt) {
+  if (!evt) return;
+  evt.preventDefault();
+  try {
+    const el = evt.currentTarget;
+    if (el && el.classList) el.classList.add('dragover');
+    if (evt.dataTransfer) evt.dataTransfer.dropEffect = 'move';
+  } catch {}
+}
+
+function handleTocDockDragLeave(evt) {
+  try {
+    const el = evt.currentTarget;
+    if (el && el.classList) el.classList.remove('dragover');
+  } catch {}
+}
+
+function handleTocDockDrop(evt) {
+  if (!evt) return;
+  evt.preventDefault();
+  try {
+    const el = evt.currentTarget;
+    if (el && el.classList) el.classList.remove('dragover');
+  } catch {}
+
+  let ok = false;
+  try {
+    const payload = evt.dataTransfer ? evt.dataTransfer.getData('text/plain') : '';
+    ok = payload === 'toc-dock';
+  } catch {
+    ok = false;
+  }
+  if (!ok && window._tocDockDrag?.active) ok = true;
+  if (!ok) return;
+
+  state.tocEditorDocked = true;
+  try { showToast('TOC editor ready'); } catch {}
+  const renderRoot = document.getElementById('template-render-root');
+  if (renderRoot && state.currentResults) {
+    renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
+    setTimeout(() => {
+      attachEditableListeners();
+      attachExtractedImageEditorHandlers();
+    }, 0);
+  }
+}
+
+function handleTableRowDragStart(evt, tablePath, fromIdx) {
+  try {
+    window._tableRowDrag = { tablePath, fromIdx };
+    if (evt && evt.dataTransfer) {
+      evt.dataTransfer.effectAllowed = 'move';
+      evt.dataTransfer.setData('text/plain', `${tablePath}|${fromIdx}`);
+    }
+  } catch {}
+}
+
+function handleTableRowDragOver(evt) {
+  if (!evt) return;
+  evt.preventDefault();
+  try {
+    if (evt.dataTransfer) evt.dataTransfer.dropEffect = 'move';
+  } catch {}
+}
+
+function handleTableRowDrop(evt, tablePath, toIdx) {
+  if (!evt) return;
+  evt.preventDefault();
+  if (!state.currentResults) return;
+
+  let fromIdx = null;
+  let fromPath = null;
+  try {
+    const payload = evt.dataTransfer ? evt.dataTransfer.getData('text/plain') : '';
+    if (payload && payload.includes('|')) {
+      const [p, i] = payload.split('|');
+      fromPath = p;
+      fromIdx = Number(i);
+    }
+  } catch {}
+
+  if (fromPath == null) {
+    fromPath = window._tableRowDrag?.tablePath;
+    fromIdx = window._tableRowDrag?.fromIdx;
+  }
+
+  if (fromPath !== tablePath) return;
+  if (typeof fromIdx !== 'number' || Number.isNaN(fromIdx)) return;
+
+  const targetArr = getValueAtPath(state.currentResults, tablePath);
+  if (!Array.isArray(targetArr)) return;
+
+  if (typeof tablePath === 'string' && tablePath.includes('table_of_contents')) {
+    state.tocUserEdited = true;
+  }
+
+  moveArrayItem(targetArr, fromIdx, toIdx);
+  syncResultsToEditor();
+  refreshPreview();
+}
+
 // Make functions globally available
 window.updateTableCell = updateTableCell;
 window.addTableRow = addTableRow;
@@ -1763,6 +2289,13 @@ window.deleteTableRow = deleteTableRow;
 window.addTableColumn = addTableColumn;
 window.deleteTableColumn = deleteTableColumn;
 window.updateColumnHeader = updateColumnHeader;
+window.handleTableRowDragStart = handleTableRowDragStart;
+window.handleTableRowDragOver = handleTableRowDragOver;
+window.handleTableRowDrop = handleTableRowDrop;
+window.handleTocDockDragStart = handleTocDockDragStart;
+window.handleTocDockDragOver = handleTocDockDragOver;
+window.handleTocDockDragLeave = handleTocDockDragLeave;
+window.handleTocDockDrop = handleTocDockDrop;
 
 function getDocumentPages(results) {
   if (!results) return [];
@@ -1864,7 +2397,7 @@ function renderProductFactura(d) {
   ];
   const tocHtml = `
     <div class="section-title">Table of Contents</div>
-    ${renderEditableTable(toc, tocColumns, 'table_of_contents')}
+    ${renderEditableTableApp(toc, tocColumns, 'table_of_contents')}
   `;
 
   const bomMatColumns = [
@@ -1880,7 +2413,7 @@ function renderProductFactura(d) {
   ];
   const bomMatHtml = `
     <div class="section-title">Bill of Materials - Product Materials</div>
-    ${renderEditableTable(bomMaterials, bomMatColumns, 'bom_product_materials')}
+    ${renderEditableTableApp(bomMaterials, bomMatColumns, 'bom_product_materials')}
   `;
 
   const bomImpColumns = [
@@ -1893,7 +2426,7 @@ function renderProductFactura(d) {
   ];
   const bomImpHtml = `
     <div class="section-title">Bill of Materials - Product Impressions</div>
-    ${renderEditableTable(bomImpressions, bomImpColumns, 'bom_product_impressions_wide')}
+    ${renderEditableTableApp(bomImpressions, bomImpColumns, 'bom_product_impressions_wide')}
   `;
 
   const measPlusColumns = [
@@ -1911,7 +2444,7 @@ function renderProductFactura(d) {
   ];
   const measPlusHtml = `
     <div class="section-title">Measurements - Plus Sizes</div>
-    ${renderEditableTable(measPlus, measPlusColumns, 'measurements_plus_wide')}
+    ${renderEditableTableApp(measPlus, measPlusColumns, 'measurements_plus_wide')}
   `;
 
   const measRegColumns = [
@@ -1930,7 +2463,7 @@ function renderProductFactura(d) {
   ];
   const measRegHtml = `
     <div class="section-title">Measurements - Regular Sizes</div>
-    ${renderEditableTable(measRegular, measRegColumns, 'measurements_regular_wide')}
+    ${renderEditableTableApp(measRegular, measRegColumns, 'measurements_regular_wide')}
   `;
 
   const constColumns = [
@@ -1944,7 +2477,7 @@ function renderProductFactura(d) {
   ];
   const constHtml = `
     <div class="section-title">Product Details - Construction</div>
-    ${renderEditableTable(construction, constColumns, 'product_details_construction')}
+    ${renderEditableTableApp(construction, constColumns, 'product_details_construction')}
   `;
 
   const extraTablesHtml = extractedTables.length
@@ -3731,10 +4264,21 @@ async function handleFileSelected(file) {
 async function saveResults() {
   if (!state.selectedJobId || state.saving) return;
   let data;
-  try {
-    data = JSON.parse(qs('results-editor').value || '{}');
-  } catch {
-    showToast('Invalid JSON');
+
+  const editorEl = qs('results-editor');
+  if (editorEl && typeof editorEl.value === 'string') {
+    try {
+      data = JSON.parse(editorEl.value || '{}');
+    } catch {
+      showToast('Invalid JSON');
+      return;
+    }
+  } else {
+    data = state.currentResults;
+  }
+
+  if (!data) {
+    showToast('Nothing to save');
     return;
   }
 
@@ -3742,6 +4286,14 @@ async function saveResults() {
     state.saving = true;
     await apiPutJson(`/jobs/${state.selectedJobId}/results`, { data });
     showToast('Results saved');
+    try {
+      state.tocEditorCollapsed = true;
+      state.tocEditorDocked = false;
+      localStorage.setItem('tocEditorCollapsed', '1');
+    } catch {}
+    try {
+      await selectJob(state.selectedJobId);
+    } catch {}
   } catch (err) {
     console.error('Error saving results', err);
     showToast('Failed to save results');
@@ -3749,6 +4301,8 @@ async function saveResults() {
     state.saving = false;
   }
 }
+
+window.saveResults = saveResults;
 
 function initUI() {
   const uploadBox = qs('upload-box');
@@ -3922,6 +4476,9 @@ function initTabs() {
 window.addEventListener('DOMContentLoaded', async () => {
   try {
     state.imageEditorCollapsed = localStorage.getItem('imageEditorCollapsed') === '1';
+  } catch {}
+  try {
+    state.tocEditorCollapsed = localStorage.getItem('tocEditorCollapsed') !== '0';
   } catch {}
   try {
     const savedTpl = localStorage.getItem('uploadTemplate');

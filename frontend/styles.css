@@ -818,6 +818,97 @@ body.modal-open {
   font-weight: 600;
 }
 
+/* ===== PAGE 2 - TABLE OF CONTENTS ===== */
+.toc-groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.toc-group {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: white;
+}
+
+.toc-group-title {
+  padding: 10px 12px;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--gray-700);
+  border-bottom: 1px solid var(--gray-200);
+  background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);
+}
+
+.toc-group-items {
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.toc-item {
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--gray-50);
+}
+
+.toc-item-main {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.toc-item-section {
+  font-weight: 800;
+  color: var(--gray-800);
+  font-size: 13px;
+}
+
+.toc-item-title {
+  font-weight: 700;
+  color: var(--gray-700);
+  font-size: 13px;
+}
+
+.toc-item-meta {
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toc-item-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--gray-200);
+  background: white;
+  color: var(--gray-700);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.toc-item-raw {
+  color: var(--gray-500);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .toc-item-main {
+    grid-template-columns: 1fr;
+  }
+}
+
 .img-tile {
   border: 1px solid var(--gray-200);
   border-radius: 10px;
@@ -860,6 +951,19 @@ body.modal-open {
   background: var(--gray-50);
   overflow: hidden;
   position: relative;
+}
+
+#toc-editor-drop {
+  min-height: 260px;
+}
+
+#toc-editor-drop .img-editor-drop-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 24px);
+  text-align: center;
 }
 
 .img-editor-drop.dragover {

@@ -173,6 +173,8 @@ DOCUMENT TEXT:
         if not template_type:
             template_type = detect_template_type(masked_text)
         
+        has_toc_hint = ("table of contents" in (masked_text or "").lower()) or ("tables of contents" in (masked_text or "").lower())
+
         # Define sections to extract in parallel - each with its own schema
         sections = {
             "header_and_order": {
@@ -323,6 +325,19 @@ DOCUMENT TEXT:
                 "instruction": "Extract ANY OTHER tables not covered by the main sections. Include table name, headers, and all data rows. This captures miscellaneous data tables."
             }
         }
+
+        if template_type in ("product_spec", "target_brands_inc") or has_toc_hint:
+            sections["table_of_contents"] = {
+                "schema": '''[
+  {
+    "section": "section name (e.g. OVERVIEW, BILL OF MATERIALS, MEASUREMENTS)",
+    "page": "page number as integer",
+    "title": "title text for that section",
+    "raw": "original line text (optional)"
+  }
+]''',
+                "instruction": "Extract the Table(s) of Contents. Parse each row into {section, page, title}. If the row doesn't split cleanly, put the full row into raw and best-effort section/page/title."
+            }
         
         def _split_pages(text: str) -> list[str]:
             parts = re.split(r"---\s*PAGE\s*\d+\s*---", text or "")
@@ -333,6 +348,11 @@ DOCUMENT TEXT:
             if not pages:
                 return masked_text
 
+            if section_name == "table_of_contents":
+                if len(pages) >= 2:
+                    return pages[1][:20000]
+                return masked_text[:20000]
+
             keywords_by_section: dict[str, list[str]] = {
                 "header_and_order": ["product number", "spec name", "product name", "buyer", "style", "season", "date"],
                 "fabric_and_yield": ["fabric", "fabrication", "yarn", "width", "weight", "rib", "yield", "consumo", "ancho", "peso"],
@@ -342,6 +362,7 @@ DOCUMENT TEXT:
                 "product_overview": ["product summary", "product number", "spec name", "product name", "status", "brand", "department"],
                 "bom_materials": ["bill of materials", "material", "supplier", "fabrication", "bom"],
                 "additional_tables": ["section:", "table", "material", "supplier", "placement", "quantity"],
+                "table_of_contents": ["table of contents", "tables of contents", "section", "page", "title", "overview"],
             }
 
             keywords = [k.lower() for k in keywords_by_section.get(section_name, [])]
@@ -358,6 +379,95 @@ DOCUMENT TEXT:
 
             out = "\n\n".join(selected)
             return out[:20000]
+
+        def _heuristic_parse_table_of_contents(text: str) -> list[dict[str, Any]]:
+            lines = (text or "").splitlines()
+            start_idx: Optional[int] = None
+            for i, ln in enumerate(lines):
+                low = (ln or "").strip().lower()
+                if "table of contents" in low or "tables of contents" in low:
+                    start_idx = i
+                    break
+            if start_idx is None:
+                for i, ln in enumerate(lines):
+                    low = (ln or "").strip().lower()
+                    if low.startswith("section") and "page" in low and "title" in low:
+                        start_idx = i
+                        break
+            if start_idx is None:
+                return []
+
+            window = lines[start_idx : start_idx + 80]
+            out: list[dict[str, Any]] = []
+            # Drop obvious header lines; keep order to parse pairs.
+            cleaned: list[str] = []
+            for ln in window:
+                raw = (ln or "").strip()
+                if not raw:
+                    continue
+                low = raw.lower()
+                if ("section" in low and "title" in low) or ("table of contents" in low) or ("tables of contents" in low):
+                    continue
+                if low.startswith("generated on"):
+                    break
+                if re.match(r"^page\s+\d+\s+of\s+\d+", low):
+                    break
+                cleaned.append(raw)
+
+            i = 0
+            while i < len(cleaned):
+                raw = cleaned[i]
+                low = raw.lower()
+
+                # Pattern: SECTION 2 title (same line)
+                m = re.match(r"^\s*([A-Z][A-Z0-9\s/&\-\.]{2,}?)\s+(\d{1,3})\s+(.+?)\s*$", raw)
+                if m:
+                    section = (m.group(1) or "").strip() or None
+                    page_str = (m.group(2) or "").strip()
+                    title = (m.group(3) or "").strip() or None
+                    try:
+                        page = int(page_str)
+                    except Exception:
+                        page = None
+                    out.append({"section": section, "page": page, "title": title, "raw": raw})
+                    i += 1
+                    continue
+
+                # Pattern: SECTION title (same line, no page)
+                m3 = re.match(r"^\s*([A-Z][A-Z0-9\s/&\-\.]{2,}?)\s+(.+?)\s*$", raw)
+                if m3 and m3.group(1) and m3.group(2) and len(m3.group(1).strip()) >= 3:
+                    # Only accept if the first chunk looks like an all-caps section.
+                    if m3.group(1).strip().upper() == m3.group(1).strip():
+                        section = (m3.group(1) or "").strip() or None
+                        title = (m3.group(2) or "").strip() or None
+                        out.append({"section": section, "page": None, "title": title, "raw": raw})
+                        i += 1
+                        continue
+
+                # Pair-line format: SECTION on its own line, then "2 measurements" on next.
+                section = raw.strip() or None
+                j = i + 1
+                while j < len(cleaned) and not (cleaned[j] or "").strip():
+                    j += 1
+                if j >= len(cleaned):
+                    break
+                nxt = (cleaned[j] or "").strip()
+                m4 = re.match(r"^(\d{1,3})\s+(.+?)\s*$", nxt)
+                if m4:
+                    try:
+                        page = int(m4.group(1))
+                    except Exception:
+                        page = None
+                    title = (m4.group(2) or "").strip() or None
+                    out.append({"section": section, "page": page, "title": title, "raw": f"{raw} | {nxt}"})
+                    i = j + 1
+                    continue
+
+                # Pair-line format but no page extracted.
+                out.append({"section": section, "page": None, "title": nxt or None, "raw": f"{raw} | {nxt}"})
+                i = j + 1
+
+            return out
 
         result: Dict[str, Any] = {"template_type": template_type}
         
@@ -416,7 +526,7 @@ DOCUMENT TEXT:
                 name, data, error = future.result()
                 if error:
                     result[f"_{name}_error"] = error
-                elif data:
+                elif data is not None:
                     # Merge the extracted data into result
                     if isinstance(data, dict):
                         for key, value in data.items():
@@ -428,11 +538,49 @@ DOCUMENT TEXT:
                             "quantity_lines": "quantity_lines",
                             "measurements": "measurement_rows",
                             "bom_materials": "bom_product_materials",
-                            "additional_tables": "additional_tables"
+                            "additional_tables": "additional_tables",
+                            "table_of_contents": "table_of_contents"
                         }
                         result_key = list_mappings.get(name, name)
                         result[result_key] = data
-        
+
+        if template_type in ("product_spec", "target_brands_inc") or has_toc_hint:
+            toc_val = result.get("table_of_contents")
+            if not isinstance(toc_val, list):
+                toc_val = []
+
+            parsed = _heuristic_parse_table_of_contents(masked_text)
+            if parsed:
+                def _max_page(rows: list[dict[str, Any]]) -> int:
+                    m = 0
+                    for r in rows:
+                        p = r.get("page")
+                        if isinstance(p, int) and p > m:
+                            m = p
+                    return m
+
+                def _non_null_pages(rows: list[dict[str, Any]]) -> int:
+                    c = 0
+                    for r in rows:
+                        if r.get("page") is not None:
+                            c += 1
+                    return c
+
+                # Prefer heuristic when it yields small page numbers typical of a TOC block
+                # like "1 bill of materials", "2 measurements", etc.
+                parsed_max = _max_page(parsed)
+                toc_max = _max_page(toc_val) if isinstance(toc_val, list) else 0
+                parsed_pages = _non_null_pages(parsed)
+                toc_pages = _non_null_pages(toc_val) if isinstance(toc_val, list) else 0
+
+                if len(toc_val) == 0:
+                    result["table_of_contents"] = parsed
+                elif parsed_max and parsed_max <= 10 and (parsed_pages >= toc_pages or toc_max > parsed_max):
+                    result["table_of_contents"] = parsed
+            else:
+                if len(toc_val) == 0:
+                    result["table_of_contents"] = []
+
         # Post-process to normalize the data
         result = post_process_extraction(result)
         
