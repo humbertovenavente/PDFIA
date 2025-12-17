@@ -166,13 +166,54 @@ function renderImageEditorPanel(pageNum) {
         <canvas id="img-editor-canvas" class="img-editor-canvas"></canvas>
       </div>
       <div class="img-editor-actions">
+        <button class="btn-secondary" id="btn-img-copy" type="button">Copy</button>
+        <button class="btn-secondary" id="btn-img-download" type="button">Download</button>
         <button class="btn-secondary" id="btn-img-reset" type="button">Reset</button>
         <button class="btn-secondary" id="btn-img-crop" type="button">Crop</button>
-        <button class="btn-primary" id="btn-img-save" type="button">Save Changes</button>
+        <button class="btn-primary" id="btn-img-save" type="button">Save as New</button>
       </div>
       <div class="img-editor-help">Tip: drag to select an area, then click Crop. Click the thumbnail to open ROI.</div>
     </div>
   `;
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [meta, b64] = String(dataUrl).split(',');
+  const mime = (meta.match(/data:([^;]+)/i) || [])[1] || 'image/png';
+  const bin = atob(b64 || '');
+  const len = bin.length;
+  const arr = new Uint8Array(len);
+  for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+async function copyEditedImageToClipboard() {
+  const st = extractedImageEditorState;
+  if (!st.workingDataUrl) return;
+  try {
+    const blob = dataUrlToBlob(st.workingDataUrl);
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      showToast('Clipboard not supported in this browser');
+      return;
+    }
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    showToast('Copied image to clipboard');
+  } catch (err) {
+    console.error('Copy failed', err);
+    showToast('Failed to copy image');
+  }
+}
+
+function downloadEditedImage() {
+  const st = extractedImageEditorState;
+  if (!st.workingDataUrl) return;
+  const a = document.createElement('a');
+  a.href = st.workingDataUrl;
+  a.download = `edited-image-${Date.now()}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('Downloaded image');
 }
 
 function loadExtractedImageIntoEditor(idx) {
@@ -275,19 +316,31 @@ function resetImageEditor() {
 function saveImageEditorChanges() {
   const st = extractedImageEditorState;
   if (!state.currentResults) return;
-  const idx = st.activeIdx;
-  if (typeof idx !== 'number') return;
   if (!st.workingDataUrl) return;
 
-  const images = Array.isArray(state.currentResults._extracted_images) ? state.currentResults._extracted_images : [];
-  const img = images[idx];
-  if (!img) return;
-  img.data_url = st.workingDataUrl;
+  if (!Array.isArray(state.currentResults._extracted_images)) {
+    state.currentResults._extracted_images = [];
+  }
+  const images = state.currentResults._extracted_images;
+  const src = (typeof st.activeIdx === 'number') ? images[st.activeIdx] : null;
+  const pageAttr = document.getElementById('img-editor-drop')?.getAttribute('data-page');
+  const pageFromDom = Number(pageAttr ?? '1');
+  const pageFallback = Number.isFinite(pageFromDom) ? pageFromDom : 1;
+  const page = getExtractedImagePage(src) ?? pageFallback;
 
   const temp = new Image();
   temp.onload = () => {
-    img.width = temp.width;
-    img.height = temp.height;
+    const newImg = {
+      data_url: st.workingDataUrl,
+      page,
+      page_number: page,
+      width: temp.width,
+      height: temp.height,
+      source: 'editor',
+      derived_from_idx: (typeof st.activeIdx === 'number') ? st.activeIdx : null,
+      created_at: new Date().toISOString(),
+    };
+    images.push(newImg);
     syncResultsToEditor();
     resetExtractedImageEditorState();
     const renderRoot = document.getElementById('template-render-root');
@@ -320,6 +373,8 @@ function attachExtractedImageEditorHandlers() {
 
   const drop = document.getElementById('img-editor-drop');
   const canvas = document.getElementById('img-editor-canvas');
+  const btnCopy = document.getElementById('btn-img-copy');
+  const btnDownload = document.getElementById('btn-img-download');
   const btnCrop = document.getElementById('btn-img-crop');
   const btnReset = document.getElementById('btn-img-reset');
   const btnSave = document.getElementById('btn-img-save');
@@ -380,6 +435,8 @@ function attachExtractedImageEditorHandlers() {
   if (btnCrop) btnCrop.onclick = cropImageEditorSelection;
   if (btnReset) btnReset.onclick = resetImageEditor;
   if (btnSave) btnSave.onclick = saveImageEditorChanges;
+  if (btnCopy) btnCopy.onclick = () => copyEditedImageToClipboard();
+  if (btnDownload) btnDownload.onclick = downloadEditedImage;
 
   // Initial draw
   drawImageEditor();
@@ -3025,26 +3082,58 @@ function attachCroppedImage() {
   const images = Array.isArray(lastCroppedImages) && lastCroppedImages.length > 0 ? lastCroppedImages : (lastCroppedImage ? [lastCroppedImage] : []);
   if (images.length === 0 || !state.currentResults) return;
 
-  // Overwrite the extracted image we are editing (same idx as ROI source image)
-  const extracted = Array.isArray(state.currentResults._extracted_images) ? state.currentResults._extracted_images : [];
-  if (typeof imageIdx === 'number' && extracted[imageIdx]) {
-    extracted[imageIdx].data_url = images[0];
+  if (!Array.isArray(state.currentResults._extracted_images)) {
+    state.currentResults._extracted_images = [];
+  }
+  const extracted = state.currentResults._extracted_images;
+  const src = (typeof imageIdx === 'number') ? extracted[imageIdx] : null;
+  const page = getExtractedImagePage(src) ?? 1;
+
+  const pushAll = () => {
+    syncResultsToEditor();
+    const renderRoot = document.getElementById('template-render-root');
+    if (renderRoot) {
+      renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
+      setTimeout(() => {
+        attachEditableListeners();
+        attachExtractedImageEditorHandlers();
+      }, 0);
+    }
+  };
+
+  let remaining = images.length;
+  images.forEach((dataUrl) => {
     const temp = new Image();
     temp.onload = () => {
-      extracted[imageIdx].width = temp.width;
-      extracted[imageIdx].height = temp.height;
-      syncResultsToEditor();
-      const renderRoot = document.getElementById('template-render-root');
-      if (renderRoot) {
-        renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
-        setTimeout(() => {
-          attachEditableListeners();
-          attachExtractedImageEditorHandlers();
-        }, 0);
-      }
+      extracted.push({
+        data_url: dataUrl,
+        page,
+        page_number: page,
+        width: temp.width,
+        height: temp.height,
+        source: 'roi',
+        derived_from_idx: (typeof imageIdx === 'number') ? imageIdx : null,
+        created_at: new Date().toISOString(),
+      });
+      remaining -= 1;
+      if (remaining === 0) pushAll();
     };
-    temp.src = images[0];
-  }
+    temp.onerror = () => {
+      extracted.push({
+        data_url: dataUrl,
+        page,
+        page_number: page,
+        width: null,
+        height: null,
+        source: 'roi',
+        derived_from_idx: (typeof imageIdx === 'number') ? imageIdx : null,
+        created_at: new Date().toISOString(),
+      });
+      remaining -= 1;
+      if (remaining === 0) pushAll();
+    };
+    temp.src = dataUrl;
+  });
   
   // Add cropped image to results
   if (!state.currentResults._roi_extractions) {
