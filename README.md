@@ -209,10 +209,48 @@ prototype/
 
 ### Prerequisites
 
-- .NET 8 SDK
-- Azure Functions Core Tools v4
-- Node.js 18+
-- Azurite (installed globally as `azurite`)
+- **Python 3.10+** (for the Python backend)
+- **Azure Functions Core Tools v4**
+- **Node.js 18+**
+- **Azurite** (Azure Storage emulator, installed globally as `azurite`)
+- **Tesseract OCR** (optional, for local image OCR)
+
+### Python Backend Dependencies
+
+The Python backend requires the following packages (see `src/FilesToData.ApiPy/requirements.txt`):
+
+```
+azure-functions>=1.17.0
+azure-storage-queue>=12.9.0
+pypdf>=4.0.0
+requests>=2.31.0
+PyMuPDF>=1.24.0
+pytesseract>=0.3.10
+Pillow>=10.0.0
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+python-dotenv>=1.0.0
+```
+
+**Install dependencies:**
+
+```powershell
+cd C:\Users\<user>\Downloads\prototype\src\FilesToData.ApiPy
+pip install -r requirements.txt
+```
+
+### Environment Variables
+
+Copy `local.settings.example.json` to `local.settings.json` and configure:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `CLAUDE_API_KEY` | **Yes** | API key for Claude AI (extraction) |
+| `AZURE_DI_ENDPOINT` | Recommended | Azure Document Intelligence endpoint |
+| `AZURE_DI_KEY` | Recommended | Azure Document Intelligence key |
+| `TESSERACT_PATH` | Optional | Path to Tesseract executable (Windows) |
+
+**Important:** Without `CLAUDE_API_KEY`, the AI extraction will fail. Without Azure DI credentials, OCR falls back to Tesseract or placeholder text.
 
 ### 1. Start Azurite (Storage emulator)
 
@@ -221,11 +259,11 @@ cd C:\Users\<user>\Downloads\prototype
 azurite
 ```
 
-### 2. Start Azure Functions backend
+### 2. Start Azure Functions backend (Python)
 
 ```powershell
-cd C:\Users\<user>\Downloads\prototype\src\FilesToData.Api
-func start
+cd C:\Users\<user>\Downloads\prototype
+func start --script-root .\src\FilesToData.ApiPy
 ```
 
 The Functions host will listen on: `http://localhost:7071`.
@@ -238,6 +276,16 @@ npx serve .
 ```
 
 Open the URL printed by `serve` (e.g. `http://localhost:3000`).
+
+### Troubleshooting: Incomplete Data Extraction
+
+If the system is not extracting all information:
+
+1. **Check `CLAUDE_API_KEY`**: Must be set and valid
+2. **Check `AZURE_DI_ENDPOINT` and `AZURE_DI_KEY`**: For better OCR quality
+3. **Install Tesseract** (Windows): Download from https://github.com/UB-Mannheim/tesseract/wiki and set `TESSERACT_PATH`
+4. **Check Python packages**: Run `pip install -r requirements.txt` to ensure all dependencies are installed
+5. **Check console logs**: The Functions host shows detailed extraction progress
 
 ---
 

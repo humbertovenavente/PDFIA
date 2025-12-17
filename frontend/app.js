@@ -187,6 +187,13 @@ function renderTargetBrandsIncPage2(root, prefix, results) {
 
   const sanitizeTocRows = (rows) => {
     const arr = Array.isArray(rows) ? rows : [];
+    const dominated = [
+      'table of contents', 'tables of contents', 'section', 'page title', 'title', 'page',
+      'materials', 'product materials', 'bill of materials', 'generated on', 'updated on',
+      '--- page', 'page 2 of', 'page 3 of', 'page 4 of', 'row section use material',
+      'apparel links', 'kims global', 'target brands', 'universalthread', 'cuttablewidth',
+      'bom-', 'fab-', 'wsh-', 'trim ut', 'fabric fas', 'wash body', 'label cb',
+    ];
     return arr
       .map(r => (r && typeof r === 'object') ? ({ ...r }) : null)
       .filter(Boolean)
@@ -199,9 +206,12 @@ function renderTargetBrandsIncPage2(root, prefix, results) {
         const s = (r.section || '').toLowerCase();
         const pt = (r.page_title || '').toLowerCase();
         if (!s && !pt) return false;
-        if (s === 'section' || s === 'page title' || s === 'title' || s === 'page') return false;
-        if (s.includes('table of contents') || s.includes('tables of contents')) return false;
-        if (pt.includes('table of contents') || pt.includes('tables of contents')) return false;
+        for (const d of dominated) {
+          if (s.includes(d) || pt.includes(d)) return false;
+        }
+        if (/^\d+\.?\d*\s*(gram|yd|in)/.test(s)) return false;
+        if (/^\d+\.?\d*\s*(gram|yd|in)/.test(pt)) return false;
+        if (/©\s*\d{4}/.test(s) || /©\s*\d{4}/.test(pt)) return false;
         return true;
       });
   };
@@ -219,8 +229,37 @@ function renderTargetBrandsIncPage2(root, prefix, results) {
     }
     if (startIdx === -1) return [];
 
-    // Consume a small window after the header.
-    const windowLines = lines.slice(startIdx, startIdx + 60);
+    const stopPatterns = [
+      /^-{2,}\s*page\s*3/i,
+      /^page\s+\d+\s+of\s+\d+/i,
+      /^materials$/i,
+      /^product\s+materials$/i,
+      /^bill\s+of\s+materials/i,
+      /^row\s+section\s+use/i,
+      /^bom-/i,
+      /^generated\s+on/i,
+      /^updated\s+on/i,
+      /apparel\s+links/i,
+      /kims\s+global/i,
+      /target\s+brands/i,
+      /©\s*\d{4}/,
+    ];
+
+    const windowLines = [];
+    for (let i = startIdx; i < Math.min(lines.length, startIdx + 40); i++) {
+      const ln = lines[i];
+      const low = ln.toLowerCase();
+      let shouldStop = false;
+      for (const pat of stopPatterns) {
+        if (pat.test(ln)) {
+          shouldStop = true;
+          break;
+        }
+      }
+      if (shouldStop) break;
+      windowLines.push(ln);
+    }
+
     const cleaned = windowLines.filter((ln) => {
       const low = ln.toLowerCase();
       if (low.includes('table of contents') || low.includes('tables of contents')) return false;
