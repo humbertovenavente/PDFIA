@@ -137,6 +137,8 @@ def jobs_handler(req: func.HttpRequest) -> func.HttpResponse:
         if mode not in ("DOCUMENT", "DESIGN"):
             return _bad_request("Invalid mode. Must be 'DOCUMENT' or 'DESIGN'")
 
+        template = (req.params.get("template") or "").strip() or None
+
         file_bytes, file_name = _parse_multipart_file(req)
         if not file_bytes or not file_name:
             return _bad_request("No file provided")
@@ -152,6 +154,7 @@ def jobs_handler(req: func.HttpRequest) -> func.HttpResponse:
             "mode": mode,
             "file_path": file_path,
             "file_name": file_name,
+            "template": template,
             "status": "PENDING",
             "error_message": None,
             "created_at": now,
@@ -170,6 +173,7 @@ def jobs_handler(req: func.HttpRequest) -> func.HttpResponse:
                 "mode": mode,
                 "status": "PENDING",
                 "file_name": file_name,
+                "template": template,
                 "created_at": job["created_at"],
             },
             status_code=201,
@@ -658,7 +662,8 @@ def process_document_job(msg: func.QueueMessage) -> None:
                 }
             )
 
-        structured = ai_service.extract_document_data(masked_text)
+        forced_template = job.get("template")
+        structured = ai_service.extract_document_data(masked_text, forced_template_type=forced_template)
         unmasked = masking_service.unmask_data(structured, masking_map)
         
         # Add extracted images to results

@@ -761,6 +761,50 @@ body.modal-open {
   letter-spacing: normal;
 }
 
+.images-editor-title .btn-secondary.btn-sm {
+  background: var(--primary) !important;
+  border: 1px solid var(--primary) !important;
+  color: white !important;
+  opacity: 1 !important;
+}
+
+.images-editor-title .btn-secondary.btn-sm:hover {
+  filter: brightness(0.95);
+}
+
+.template-selector {
+  margin-top: 14px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.template-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray-700);
+}
+
+.template-select {
+  appearance: none;
+  border: 1px solid var(--gray-200);
+  background: white;
+  color: var(--gray-800);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 13px;
+  min-width: 220px;
+}
+
+.template-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
 .images-editor-grid {
   padding: 12px;
   display: grid;

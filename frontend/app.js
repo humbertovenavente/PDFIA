@@ -158,9 +158,10 @@ function renderExtractedImagesThumbsFromPage(results, pageNum) {
 }
 
 function renderImageEditorPanel(pageNum) {
+  const toggleLabel = state.imageEditorCollapsed ? 'Show editor' : 'Hide editor';
   return `
     <div class="images-editor-right">
-      <div class="images-editor-title">Image Editor</div>
+      <div class="images-editor-title"><span>Image Editor</span><button class="btn-secondary btn-sm" id="btn-toggle-image-editor-right" type="button">${escapeHtml(toggleLabel)}</button></div>
       <div class="img-editor-drop" id="img-editor-drop" data-page="${escapeHtml(pageNum)}">
         <div class="img-editor-drop-hint">Drag an image here to edit</div>
         <canvas id="img-editor-canvas" class="img-editor-canvas"></canvas>
@@ -357,18 +358,28 @@ function saveImageEditorChanges() {
 
 function attachExtractedImageEditorHandlers() {
   const toggleBtn = document.getElementById('btn-toggle-image-editor');
+  const toggleBtnRight = document.getElementById('btn-toggle-image-editor-right');
+
+  const doToggle = () => {
+    state.imageEditorCollapsed = !state.imageEditorCollapsed;
+    try {
+      localStorage.setItem('imageEditorCollapsed', state.imageEditorCollapsed ? '1' : '0');
+    } catch {}
+    const renderRoot = document.getElementById('template-render-root');
+    if (renderRoot && state.currentResults) {
+      renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
+      setTimeout(() => {
+        attachEditableListeners();
+        attachExtractedImageEditorHandlers();
+      }, 0);
+    }
+  };
+
   if (toggleBtn) {
-    toggleBtn.onclick = () => {
-      state.imageEditorCollapsed = !state.imageEditorCollapsed;
-      const renderRoot = document.getElementById('template-render-root');
-      if (renderRoot && state.currentResults) {
-        renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
-        setTimeout(() => {
-          attachEditableListeners();
-          attachExtractedImageEditorHandlers();
-        }, 0);
-      }
-    };
+    toggleBtn.onclick = doToggle;
+  }
+  if (toggleBtnRight) {
+    toggleBtnRight.onclick = doToggle;
   }
 
   const drop = document.getElementById('img-editor-drop');
@@ -606,6 +617,7 @@ const state = {
   jobPollTimer: null,
   templateEditorTimer: null,
   imageEditorCollapsed: false,
+  uploadTemplate: 'auto',
 };
 
 function qs(id) {
@@ -3702,7 +3714,9 @@ async function handleFileSelected(file) {
 
   try {
     showToast('Uploading file...');
-    const res = await apiPostForm(`/jobs?mode=${state.mode}`, form);
+    const tpl = state.uploadTemplate || 'auto';
+    const tplParam = tpl && tpl !== 'auto' ? `&template=${encodeURIComponent(tpl)}` : '';
+    const res = await apiPostForm(`/jobs?mode=${state.mode}${tplParam}`, form);
     showToast('Job created');
     await loadJobs();
     if (res.job_id) {
@@ -3739,6 +3753,7 @@ async function saveResults() {
 function initUI() {
   const uploadBox = qs('upload-box');
   const fileInput = qs('file-input');
+  const templateSelect = qs('template-select');
 
   if (uploadBox) {
     uploadBox.addEventListener('click', (e) => {
@@ -3845,6 +3860,16 @@ function initUI() {
       });
     });
   }
+
+  if (templateSelect) {
+    templateSelect.value = state.uploadTemplate || 'auto';
+    templateSelect.addEventListener('change', () => {
+      state.uploadTemplate = templateSelect.value || 'auto';
+      try {
+        localStorage.setItem('uploadTemplate', state.uploadTemplate);
+      } catch {}
+    });
+  }
 }
 
 // Tab navigation functionality
@@ -3895,6 +3920,13 @@ function initTabs() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    state.imageEditorCollapsed = localStorage.getItem('imageEditorCollapsed') === '1';
+  } catch {}
+  try {
+    const savedTpl = localStorage.getItem('uploadTemplate');
+    if (savedTpl) state.uploadTemplate = savedTpl;
+  } catch {}
   initUI();
   await checkHealth();
   await loadJobs();

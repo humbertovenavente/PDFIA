@@ -161,15 +161,17 @@ DOCUMENT TEXT:
         )
         return _extract_json(response_text)
 
-    def extract_document_data(self, masked_text: str) -> Dict[str, Any]:
+    def extract_document_data(self, masked_text: str, forced_template_type: Optional[str] = None) -> Dict[str, Any]:
         """
         Extract document data using PARALLEL extraction by sections.
         This is faster and respects the 4096 token limit per request.
         """
         import concurrent.futures
         
-        # Detect template type from the text
-        template_type = detect_template_type(masked_text)
+        # Detect template type from the text (unless forced)
+        template_type = (forced_template_type or "").strip() or None
+        if not template_type:
+            template_type = detect_template_type(masked_text)
         
         # Define sections to extract in parallel - each with its own schema
         sections = {
