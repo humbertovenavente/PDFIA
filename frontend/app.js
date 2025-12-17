@@ -12,7 +12,532 @@ function getApiBase() {
   return base;
 }
 
+function getPrimaryTemplateType(results) {
+  if (!results) return null;
+  if (results.template_type) return results.template_type;
+  if (Array.isArray(results.pages) && results.pages.length > 0) {
+    const p0 = results.pages[0];
+    const root = p0 && (p0.data || p0);
+    return root && root.template_type ? root.template_type : null;
+  }
+  return null;
+}
+
+function shouldUseTemplateView(mode, results) {
+  if (mode !== 'DOCUMENT') return false;
+  const t = getPrimaryTemplateType(results);
+  if (t === 'product_spec') return true;
+  if (t === 'target_brands_inc') return true;
+  if (t === 'unknown' && (results?.product_overview || results?.bom_product_materials || results?.additional_tables || results?.items)) {
+    return true;
+  }
+  if (Array.isArray(results?.pages) && results.pages.length > 0) {
+    const root = results.pages[0]?.data;
+    if (root?.template_type === 'unknown' && (root?.product_overview || root?.bom_product_materials || root?.additional_tables || root?.items)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function parseTargetBrandsIncMeta(rawText) {
+  const text = String(rawText || '');
+  const out = { generated_on: null, generated_by: null, company: null };
+  const m = /Generated\s+on\s+([^\n]+?)\s+by\s+([^\n]+?)\s+©/i.exec(text);
+  if (m) {
+    out.generated_on = (m[1] || '').trim() || null;
+    out.generated_by = (m[2] || '').trim() || null;
+  }
+  const c = /\b([A-Z][A-Z0-9 .,&\-]+S\.A\.)\b/.exec(text.slice(0, 800));
+  if (c) out.company = (c[1] || '').trim() || null;
+  return out;
+}
+
+function parseTargetBrandsIncWorkspace(rawText) {
+  const text = String(rawText || '');
+  const out = { workspace_name: null, workspace_id: null, design_cycle: null, set_dates: null };
+
+  const wn = /Workspace\s+Name\s*(?:\n|\s)+([^\n]+?)(?:\n|Workspace\s+ID|Design\s+Cycle|Set\s+Dates|$)/i.exec(text);
+  if (wn) out.workspace_name = (wn[1] || '').trim() || null;
+
+  const wid = /\bWRK-[A-Z0-9]+\b/i.exec(text);
+  if (wid) out.workspace_id = (wid[0] || '').trim() || null;
+
+  const dc = /Design\s+Cycle\s*(?:\n|\s)+([^\n]+?)(?:\n|Workspace\s+Name|Workspace\s+ID|Set\s+Dates|$)/i.exec(text);
+  if (dc) out.design_cycle = (dc[1] || '').trim() || null;
+
+  // Keep set dates empty unless explicitly extracted into structured JSON
+  out.set_dates = null;
+
+  return out;
+}
+
+function hydrateTargetBrandsIncDefaults(results) {
+  if (!results) return;
+  const { root, prefix } = getTemplateRootInfo(results);
+  if (!root) return;
+
+  const rawText = root?.raw_text || results?.raw_text || '';
+  const meta = parseTargetBrandsIncWorkspace(rawText);
+
+  const setIfMissing = (path, value) => {
+    if (!value) return;
+    const fullPath = joinPath(prefix, path);
+    const parts = fullPath.replace(/\[(\d+)\]/g, '.$1').split('.');
+    let current = results;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      if (current[part] === undefined) return;
+      current = current[part];
+    }
+    const last = parts[parts.length - 1];
+    const existing = current[last];
+    if (existing == null || String(existing).trim() === '') {
+      current[last] = value;
+    }
+  };
+
+  setIfMissing('product_overview.workspace_name', meta.workspace_name);
+  setIfMissing('product_overview.workspace_id', meta.workspace_id);
+  setIfMissing('product_overview.design_cycle', meta.design_cycle);
+}
+
+const extractedImageEditorState = {
+  activeIdx: null,
+  originalDataUrl: null,
+  workingDataUrl: null,
+  img: null,
+  canvas: null,
+  ctx: null,
+  draw: { scale: 1, offsetX: 0, offsetY: 0, width: 0, height: 0 },
+  selecting: false,
+  sel: { x: 0, y: 0, w: 0, h: 0 },
+  selStart: { x: 0, y: 0 },
+  mouseUpBound: false
+};
+
+function getExtractedImagePage(img) {
+  const p = img?.page ?? img?.page_number ?? null;
+  if (p == null) return null;
+  const n = Number(p);
+  return Number.isFinite(n) ? n : null;
+}
+
+function renderExtractedImagesThumbsFromPage(results, pageNum) {
+  const images = Array.isArray(results?._extracted_images) ? results._extracted_images : [];
+  window._extractedImages = images;
+
+  const pageImages = images
+    .map((img, idx) => ({ img, idx }))
+    .filter(({ img }) => getExtractedImagePage(img) === pageNum);
+
+  const thumbs = pageImages.length
+    ? pageImages
+        .map(({ img, idx }) => {
+          const url = img?.data_url;
+          if (!url) return '';
+          return `
+            <div class="img-tile" draggable="true"
+                 onclick="loadExtractedImageIntoEditor(${idx})"
+                 ondragstart="event.dataTransfer.setData('text/plain', JSON.stringify({type:'extracted_image', idx:${idx}}));">
+              <img src="${url}" alt="Extracted image ${idx + 1}" onclick="event.stopPropagation();openImagePreviewModal(${idx})" />
+              <div class="img-tile-meta">#${idx + 1}</div>
+            </div>
+          `;
+        })
+        .join('')
+    : `<div class="img-empty">No extracted images for page ${escapeHtml(pageNum)}</div>`;
+
+  const toggleLabel = state.imageEditorCollapsed ? 'Show editor' : 'Hide editor';
+  return `
+    <div class="images-editor-left">
+      <div class="images-editor-title"><span>Extracted Images from Page ${escapeHtml(pageNum)}</span><button class="btn-secondary btn-sm" id="btn-toggle-image-editor" type="button">${escapeHtml(toggleLabel)}</button></div>
+      <div class="images-editor-grid">${thumbs}</div>
+    </div>
+  `;
+}
+
+function renderImageEditorPanel(pageNum) {
+  return `
+    <div class="images-editor-right">
+      <div class="images-editor-title">Image Editor</div>
+      <div class="img-editor-drop" id="img-editor-drop" data-page="${escapeHtml(pageNum)}">
+        <div class="img-editor-drop-hint">Drag an image here to edit</div>
+        <canvas id="img-editor-canvas" class="img-editor-canvas"></canvas>
+      </div>
+      <div class="img-editor-actions">
+        <button class="btn-secondary" id="btn-img-reset" type="button">Reset</button>
+        <button class="btn-secondary" id="btn-img-crop" type="button">Crop</button>
+        <button class="btn-primary" id="btn-img-save" type="button">Save Changes</button>
+      </div>
+      <div class="img-editor-help">Tip: drag to select an area, then click Crop. Click the thumbnail to open ROI.</div>
+    </div>
+  `;
+}
+
+function loadExtractedImageIntoEditor(idx) {
+  if (!state.currentResults) return;
+  const images = Array.isArray(state.currentResults._extracted_images) ? state.currentResults._extracted_images : [];
+  const img = images[idx];
+  if (!img?.data_url) return;
+  extractedImageEditorState.activeIdx = idx;
+  extractedImageEditorState.originalDataUrl = img.data_url;
+  extractedImageEditorState.workingDataUrl = img.data_url;
+  drawImageEditor();
+}
+
+function drawImageEditor() {
+  const canvas = extractedImageEditorState.canvas || document.getElementById('img-editor-canvas');
+  if (!canvas) return;
+  extractedImageEditorState.canvas = canvas;
+  extractedImageEditorState.ctx = canvas.getContext('2d');
+
+  const wrap = document.getElementById('img-editor-drop');
+  const w = Math.max(360, (wrap?.clientWidth || 820) - 2);
+  const h = 520;
+  canvas.width = w;
+  canvas.height = h;
+
+  const ctx = extractedImageEditorState.ctx;
+  ctx.clearRect(0, 0, w, h);
+
+  const dataUrl = extractedImageEditorState.workingDataUrl;
+  if (!dataUrl) {
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
+  const imgEl = new Image();
+  imgEl.onload = () => {
+    extractedImageEditorState.img = imgEl;
+    const scale = Math.min(w / imgEl.width, h / imgEl.height);
+    const dw = imgEl.width * scale;
+    const dh = imgEl.height * scale;
+    const ox = (w - dw) / 2;
+    const oy = (h - dh) / 2;
+    extractedImageEditorState.draw = { scale, offsetX: ox, offsetY: oy, width: dw, height: dh };
+
+    ctx.fillStyle = '#f9fafb';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(imgEl, ox, oy, dw, dh);
+    drawSelectionOverlay();
+  };
+  imgEl.src = dataUrl;
+}
+
+function drawSelectionOverlay() {
+  const { canvas, ctx, sel } = extractedImageEditorState;
+  if (!canvas || !ctx) return;
+  if (!sel || sel.w === 0 || sel.h === 0) return;
+  ctx.save();
+  ctx.strokeStyle = '#6366f1';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.strokeRect(sel.x, sel.y, sel.w, sel.h);
+  ctx.restore();
+}
+
+function cropImageEditorSelection() {
+  const st = extractedImageEditorState;
+  if (!st.img || !st.canvas) return;
+  const { sel } = st;
+  if (!sel || sel.w === 0 || sel.h === 0) return;
+
+  const { scale, offsetX, offsetY, width, height } = st.draw;
+  const x1 = Math.max(offsetX, Math.min(offsetX + width, sel.x));
+  const y1 = Math.max(offsetY, Math.min(offsetY + height, sel.y));
+  const x2 = Math.max(offsetX, Math.min(offsetX + width, sel.x + sel.w));
+  const y2 = Math.max(offsetY, Math.min(offsetY + height, sel.y + sel.h));
+
+  const sx = Math.max(0, (x1 - offsetX) / scale);
+  const sy = Math.max(0, (y1 - offsetY) / scale);
+  const sw = Math.max(1, (x2 - x1) / scale);
+  const sh = Math.max(1, (y2 - y1) / scale);
+
+  const cropCanvas = document.createElement('canvas');
+  cropCanvas.width = Math.round(sw);
+  cropCanvas.height = Math.round(sh);
+  const cctx = cropCanvas.getContext('2d');
+  cctx.drawImage(st.img, sx, sy, sw, sh, 0, 0, cropCanvas.width, cropCanvas.height);
+  st.workingDataUrl = cropCanvas.toDataURL('image/png');
+  st.sel = { x: 0, y: 0, w: 0, h: 0 };
+  drawImageEditor();
+}
+
+function resetImageEditor() {
+  const st = extractedImageEditorState;
+  st.workingDataUrl = st.originalDataUrl;
+  st.sel = { x: 0, y: 0, w: 0, h: 0 };
+  drawImageEditor();
+}
+
+function saveImageEditorChanges() {
+  const st = extractedImageEditorState;
+  if (!state.currentResults) return;
+  const idx = st.activeIdx;
+  if (typeof idx !== 'number') return;
+  if (!st.workingDataUrl) return;
+
+  const images = Array.isArray(state.currentResults._extracted_images) ? state.currentResults._extracted_images : [];
+  const img = images[idx];
+  if (!img) return;
+  img.data_url = st.workingDataUrl;
+
+  const temp = new Image();
+  temp.onload = () => {
+    img.width = temp.width;
+    img.height = temp.height;
+    syncResultsToEditor();
+    resetExtractedImageEditorState();
+    const renderRoot = document.getElementById('template-render-root');
+    if (renderRoot) {
+      renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
+      setTimeout(() => {
+        attachEditableListeners();
+        attachExtractedImageEditorHandlers();
+      }, 0);
+    }
+  };
+  temp.src = st.workingDataUrl;
+}
+
+function attachExtractedImageEditorHandlers() {
+  const toggleBtn = document.getElementById('btn-toggle-image-editor');
+  if (toggleBtn) {
+    toggleBtn.onclick = () => {
+      state.imageEditorCollapsed = !state.imageEditorCollapsed;
+      const renderRoot = document.getElementById('template-render-root');
+      if (renderRoot && state.currentResults) {
+        renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
+        setTimeout(() => {
+          attachEditableListeners();
+          attachExtractedImageEditorHandlers();
+        }, 0);
+      }
+    };
+  }
+
+  const drop = document.getElementById('img-editor-drop');
+  const canvas = document.getElementById('img-editor-canvas');
+  const btnCrop = document.getElementById('btn-img-crop');
+  const btnReset = document.getElementById('btn-img-reset');
+  const btnSave = document.getElementById('btn-img-save');
+  if (!drop || !canvas) return;
+
+  extractedImageEditorState.canvas = canvas;
+  extractedImageEditorState.ctx = canvas.getContext('2d');
+
+  drop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    drop.classList.add('dragover');
+  });
+  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('dragover');
+    let payload;
+    try {
+      payload = JSON.parse(e.dataTransfer.getData('text/plain') || '{}');
+    } catch {
+      payload = null;
+    }
+    if (!payload || payload.type !== 'extracted_image') return;
+    loadExtractedImageIntoEditor(payload.idx);
+  });
+
+  const getPos = (evt) => {
+    const rect = canvas.getBoundingClientRect();
+    return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+  };
+
+  canvas.onmousedown = (e) => {
+    if (!extractedImageEditorState.workingDataUrl) return;
+    extractedImageEditorState.selecting = true;
+    const p = getPos(e);
+    extractedImageEditorState.selStart = p;
+    extractedImageEditorState.sel = { x: p.x, y: p.y, w: 0, h: 0 };
+  };
+  canvas.onmousemove = (e) => {
+    if (!extractedImageEditorState.selecting) return;
+    const p = getPos(e);
+    const s = extractedImageEditorState.selStart;
+    const x = Math.min(s.x, p.x);
+    const y = Math.min(s.y, p.y);
+    const w = Math.abs(p.x - s.x);
+    const h = Math.abs(p.y - s.y);
+    extractedImageEditorState.sel = { x, y, w, h };
+    drawImageEditor();
+  };
+  if (!extractedImageEditorState.mouseUpBound) {
+    window.addEventListener('mouseup', () => {
+      if (!extractedImageEditorState.selecting) return;
+      extractedImageEditorState.selecting = false;
+    });
+    extractedImageEditorState.mouseUpBound = true;
+  }
+
+  if (btnCrop) btnCrop.onclick = cropImageEditorSelection;
+  if (btnReset) btnReset.onclick = resetImageEditor;
+  if (btnSave) btnSave.onclick = saveImageEditorChanges;
+
+  // Initial draw
+  drawImageEditor();
+}
+
+function renderTargetBrandsIncPage1(page, prefix, results) {
+  const root = page?.data || {};
+  const ov = root?.product_overview || {};
+  const wsMeta = parseTargetBrandsIncWorkspace(page?.raw_text || root?.raw_text);
+
+  const productTitle = ov.product_name || 'Product';
+
+  const pageNum = page?.page_number ?? 1;
+  const thumbsHtml = renderExtractedImagesThumbsFromPage(results, pageNum);
+  const editorHtml = state.imageEditorCollapsed ? '' : renderImageEditorPanel(pageNum);
+
+  return `
+    <div class="page-card">
+      <div class="page-title">${escapeHtml(productTitle)}</div>
+      <div class="page1-split ${state.imageEditorCollapsed ? 'editor-collapsed' : ''}">
+        <div class="page1-left">
+          <div class="grid-2">
+            <div class="kv">
+              <div class="kv-title">Product Attributes</div>
+              ${kvRow('Product Name', ov.product_name, joinPath(prefix, 'product_overview.product_name'))}
+              ${kvRow('Product ID', ov.product_id, joinPath(prefix, 'product_overview.product_id'))}
+              ${kvRow('Status', ov.status, joinPath(prefix, 'product_overview.status'))}
+              ${kvRow('Brand', ov.brand, joinPath(prefix, 'product_overview.brand'))}
+              ${kvRow('Department', ov.department, joinPath(prefix, 'product_overview.department'))}
+              ${kvRow('Division', ov.division, joinPath(prefix, 'product_overview.division'))}
+              ${kvRow('Class', ov.class, joinPath(prefix, 'product_overview.class'))}
+              ${kvRow('Primary Material', ov.primary_material, joinPath(prefix, 'product_overview.primary_material'))}
+              ${kvRow('Secondary Material', ov.secondary_material, joinPath(prefix, 'product_overview.secondary_material'))}
+              ${kvRow('Vendor Style #', ov.vendor_style_number, joinPath(prefix, 'product_overview.vendor_style_number'))}
+              ${kvRow('Additional Product Details', ov.additional_product_details, joinPath(prefix, 'product_overview.additional_product_details'))}
+              ${kvRow('System Tags', ov.system_tags, joinPath(prefix, 'product_overview.system_tags'))}
+              ${kvRow('Tags', ov.tags, joinPath(prefix, 'product_overview.tags'))}
+            </div>
+            <div class="kv">
+              <div class="kv-title">Workspace Details</div>
+              ${kvRow('Workspace Name', ov.workspace_name || wsMeta.workspace_name, joinPath(prefix, 'product_overview.workspace_name'))}
+              ${kvRow('Workspace ID', ov.workspace_id || wsMeta.workspace_id, joinPath(prefix, 'product_overview.workspace_id'))}
+              ${kvRow('Design Cycle', ov.design_cycle || wsMeta.design_cycle, joinPath(prefix, 'product_overview.design_cycle'))}
+              ${kvRow('Set Dates', ov.set_dates, joinPath(prefix, 'product_overview.set_dates'))}
+            </div>
+          </div>
+          ${thumbsHtml}
+        </div>
+        <div class="page1-right">
+          ${editorHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function resetExtractedImageEditorState() {
+  extractedImageEditorState.activeIdx = null;
+  extractedImageEditorState.originalDataUrl = null;
+  extractedImageEditorState.workingDataUrl = null;
+  extractedImageEditorState.img = null;
+  extractedImageEditorState.selecting = false;
+  extractedImageEditorState.sel = { x: 0, y: 0, w: 0, h: 0 };
+  extractedImageEditorState.selStart = { x: 0, y: 0 };
+}
+
+function ensureImagePreviewModal() {
+  let modal = document.getElementById('img-preview-modal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'img-preview-modal';
+  modal.className = 'img-preview-modal hidden';
+  modal.innerHTML = `
+    <div class="img-preview-overlay" id="img-preview-overlay"></div>
+    <div class="img-preview-content">
+      <div class="img-preview-header">
+        <div class="img-preview-title" id="img-preview-title">Preview</div>
+        <div class="img-preview-actions">
+          <button class="btn-secondary btn-sm" id="btn-img-preview-roi" type="button">Open ROI</button>
+          <button class="btn-secondary btn-sm" id="btn-img-preview-close" type="button">Close</button>
+        </div>
+      </div>
+      <div class="img-preview-body">
+        <img id="img-preview-img" alt="Preview" />
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  const overlay = document.getElementById('img-preview-overlay');
+  const closeBtn = document.getElementById('btn-img-preview-close');
+  if (overlay) overlay.onclick = closeImagePreviewModal;
+  if (closeBtn) closeBtn.onclick = closeImagePreviewModal;
+  return modal;
+}
+
+function openImagePreviewModal(idx) {
+  const images = window._extractedImages;
+  if (!images || !images[idx] || !images[idx].data_url) return;
+  const modal = ensureImagePreviewModal();
+  const imgEl = document.getElementById('img-preview-img');
+  const titleEl = document.getElementById('img-preview-title');
+  const btnRoi = document.getElementById('btn-img-preview-roi');
+  if (imgEl) imgEl.src = images[idx].data_url;
+  const p = images[idx]?.page ?? images[idx]?.page_number ?? '—';
+  if (titleEl) titleEl.textContent = `Extracted Image #${idx + 1} (Page ${p})`;
+  if (btnRoi) btnRoi.onclick = () => {
+    closeImagePreviewModal();
+    openImageRoiModal(idx);
+  };
+  modal.classList.remove('hidden');
+}
+
+function closeImagePreviewModal() {
+  const modal = document.getElementById('img-preview-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+window.openImagePreviewModal = openImagePreviewModal;
+window.closeImagePreviewModal = closeImagePreviewModal;
+
+function renderTemplateView(mode, results) {
+  const pages = getDocumentPages(results);
+  const firstPage = pages[0] || { page_number: 1, data: results, raw_text: results?.raw_text };
+  const { prefix, templateType } = getTemplateRootInfo(results);
+  const t = getPrimaryTemplateType(results) || firstPage?.data?.template_type || templateType || null;
+  if (t === 'product_spec' || t === 'target_brands_inc' || (t === 'unknown' && (firstPage?.data?.product_overview || results?.product_overview))) {
+    return `<div class="preview-root">${renderTargetBrandsIncPage1(firstPage, prefix, results)}</div>`;
+  }
+  const pagesHtml = pages.map(renderDocumentPage).join('');
+  return `<div class="preview-root">${pagesHtml}</div>`;
+}
+
 const API_BASE = getApiBase();
+window.API_BASE = API_BASE;
+
+const __originalFetch = window.fetch ? window.fetch.bind(window) : null;
+if (__originalFetch) {
+  window.fetch = (input, init) => {
+    let url = '';
+    try {
+      url = typeof input === 'string' ? input : (input && input.url) ? input.url : '';
+    } catch (e) {
+      url = '';
+    }
+
+    if (/\.ngrok-free\.app\b/i.test(url)) {
+      const nextInit = init ? { ...init } : {};
+      const hdrs = new Headers(nextInit.headers || {});
+      if (!hdrs.has('ngrok-skip-browser-warning')) {
+        hdrs.set('ngrok-skip-browser-warning', 'true');
+      }
+      nextInit.headers = hdrs;
+      return __originalFetch(input, nextInit);
+    }
+
+    return __originalFetch(input, init);
+  };
+}
 
 const state = {
   mode: 'DOCUMENT',
@@ -21,10 +546,198 @@ const state = {
   saving: false,
   currentResults: null, // Store current results for editing
   editMode: true, // Enable edit mode by default
+  jobPollTimer: null,
+  templateEditorTimer: null,
+  imageEditorCollapsed: false,
 };
 
 function qs(id) {
   return document.getElementById(id);
+}
+
+function ensureTemplateViewEl() {
+  let el = document.getElementById('template-view');
+  if (el) return el;
+  const tab = document.getElementById('tab-editor');
+  if (!tab) return null;
+  el = document.createElement('div');
+  el.id = 'template-view';
+  el.className = 'hidden';
+  tab.insertBefore(el, tab.firstChild);
+  return el;
+}
+
+function renderTemplateProcessingCard(job) {
+  return `
+    <div class="preview-root">
+      <div class="page-card">
+        <div class="page-title">Processing</div>
+        <div class="empty-state">
+          <i class="fas fa-hourglass-half"></i>
+          <p>${escapeHtml(job?.status === 'PROCESSING' ? 'Processing document...' : 'Waiting for results')}</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function inputVal(v) {
+  if (v == null) return '';
+  if (Array.isArray(v)) return v.map(x => String(x ?? '')).join(', ');
+  return String(v);
+}
+
+function joinPath(prefix, path) {
+  if (!prefix) return path;
+  if (!path) return prefix;
+  return `${prefix}.${path}`;
+}
+
+function getTemplateRootInfo(results) {
+  if (!results) return { root: null, prefix: '', templateType: null };
+
+  // If backend wrapped content in pages, edit the first page's data
+  if (Array.isArray(results.pages) && results.pages.length) {
+    let firstIdx = 0;
+    let minPage = Infinity;
+    for (let i = 0; i < results.pages.length; i++) {
+      const n = results.pages[i]?.page_number ?? 1;
+      if (n < minPage) {
+        minPage = n;
+        firstIdx = i;
+      }
+    }
+    const root = results.pages[firstIdx]?.data ?? {};
+    const templateType = root?.template_type ?? results?.template_type ?? null;
+    return { root, prefix: `pages[${firstIdx}].data`, templateType };
+  }
+
+  const templateType = results?.template_type ?? null;
+  return { root: results, prefix: '', templateType };
+}
+
+function ensureResultsObject(maybeResults) {
+  if (!maybeResults) return null;
+  if (typeof maybeResults === 'string') {
+    try {
+      return JSON.parse(maybeResults);
+    } catch {
+      return null;
+    }
+  }
+  return maybeResults;
+}
+
+function renderEditorField(label, path, value, multiline = false) {
+  const v = inputVal(value);
+  if (multiline) {
+    return `
+      <div class="template-form-row">
+        <div class="template-form-label">${escapeHtml(label)}</div>
+        <textarea class="template-form-input template-form-textarea" data-path="${escapeHtml(path)}" spellcheck="false">${escapeHtml(v)}</textarea>
+      </div>
+    `;
+  }
+  return `
+    <div class="template-form-row">
+      <div class="template-form-label">${escapeHtml(label)}</div>
+      <input class="template-form-input" data-path="${escapeHtml(path)}" value="${escapeHtml(v)}" />
+    </div>
+  `;
+}
+
+function renderTargetBrandsIncPage1Editor(prefix, root) {
+  const ov = root?.product_overview || {};
+  return `
+    <div class="template-form">
+      <div class="template-form-section">
+        <div class="template-form-section-title">Product Attributes</div>
+        ${renderEditorField('Product Name', joinPath(prefix, 'product_overview.product_name'), ov.product_name)}
+        ${renderEditorField('Product ID', joinPath(prefix, 'product_overview.product_id'), ov.product_id)}
+        ${renderEditorField('Status', joinPath(prefix, 'product_overview.status'), ov.status)}
+        ${renderEditorField('Brand', joinPath(prefix, 'product_overview.brand'), ov.brand)}
+        ${renderEditorField('Department', joinPath(prefix, 'product_overview.department'), ov.department)}
+        ${renderEditorField('Division', joinPath(prefix, 'product_overview.division'), ov.division)}
+        ${renderEditorField('Class', joinPath(prefix, 'product_overview.class'), ov.class)}
+        ${renderEditorField('Primary Material', joinPath(prefix, 'product_overview.primary_material'), ov.primary_material)}
+        ${renderEditorField('Secondary Material', joinPath(prefix, 'product_overview.secondary_material'), ov.secondary_material)}
+        ${renderEditorField('Vendor Style #', joinPath(prefix, 'product_overview.vendor_style_number'), ov.vendor_style_number)}
+        ${renderEditorField('System Tags', joinPath(prefix, 'product_overview.system_tags'), ov.system_tags, true)}
+        ${renderEditorField('Tags', joinPath(prefix, 'product_overview.tags'), ov.tags, true)}
+      </div>
+
+      <div class="template-form-divider"></div>
+
+      <div class="template-form-section">
+        <div class="template-form-section-title">Workspace Details</div>
+        ${renderEditorField('Workspace Name', joinPath(prefix, 'product_overview.workspace_name'), ov.workspace_name)}
+        ${renderEditorField('Workspace ID', joinPath(prefix, 'product_overview.workspace_id'), ov.workspace_id)}
+        ${renderEditorField('Design Cycle', joinPath(prefix, 'product_overview.design_cycle'), ov.design_cycle)}
+        ${renderEditorField('Set Dates', joinPath(prefix, 'product_overview.set_dates'), ov.set_dates)}
+      </div>
+
+      <div class="template-form-hint">Changes update the preview instantly.</div>
+    </div>
+  `;
+}
+
+function renderTemplateEditorPanel(mode, results) {
+  if (!results) {
+    return `
+      <div class="template-form">
+        <div class="template-form-empty">
+          Processing... editor will be available when results are ready.
+        </div>
+      </div>
+    `;
+  }
+  const { root, prefix, templateType } = getTemplateRootInfo(results);
+  const t = getPrimaryTemplateType(results) || templateType || null;
+  const hasOverview = !!(root?.product_overview || results?.product_overview);
+  if (t === 'product_spec' || t === 'target_brands_inc' || t === 'unknown' || hasOverview) {
+    return renderTargetBrandsIncPage1Editor(prefix, root);
+  }
+  return `
+    <div class="template-form">
+      <div class="template-form-empty">Editor panel is not available for this template yet.</div>
+    </div>
+  `;
+}
+
+function renderTemplateSplitView(mode, results, job) {
+  const normalized = ensureResultsObject(results);
+  const leftHtml = normalized ? renderTemplateView(mode, normalized) : renderTemplateProcessingCard(job);
+  return `
+    <div id="template-render-root">${leftHtml}</div>
+  `;
+}
+
+function attachTemplateSplitEditor(mode) {
+  const root = document.getElementById('template-editor-root');
+  const renderRoot = document.getElementById('template-render-root');
+  if (!root || !renderRoot) return;
+
+  root.querySelectorAll('.template-form-input[data-path]').forEach((el) => {
+    const handler = () => {
+      if (!state.currentResults) return;
+      const path = el.getAttribute('data-path');
+      if (!path) return;
+      const value = (el.value ?? '').toString();
+
+      if (state.templateEditorTimer) {
+        clearTimeout(state.templateEditorTimer);
+        state.templateEditorTimer = null;
+      }
+      state.templateEditorTimer = setTimeout(() => {
+        setNestedValue(state.currentResults, path, value);
+        syncResultsToEditor();
+        renderRoot.innerHTML = renderTemplateView(mode, state.currentResults);
+        setTimeout(() => attachEditableListeners(), 0);
+      }, 150);
+    };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+  });
 }
 
 function renderMatrixTable(matrix) {
@@ -947,6 +1660,16 @@ function attachEditableListeners() {
       const value = this.textContent.trim();
       setNestedValue(state.currentResults, path, value);
       syncResultsToEditor();
+
+      const templateView = document.getElementById('template-view');
+      const renderRoot = document.getElementById('template-render-root');
+      if (templateView && !templateView.classList.contains('hidden') && renderRoot) {
+        renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
+        setTimeout(() => {
+          attachEditableListeners();
+          attachExtractedImageEditorHandlers();
+        }, 0);
+      }
     });
   });
 }
@@ -1396,6 +2119,10 @@ function renderResultsPreview(mode, results) {
     return exportButtons + renderDesignResults(results);
   }
 
+  if (shouldUseTemplateView(mode, results)) {
+    return exportButtons + renderTemplateView(mode, results);
+  }
+
   // Direct product_factura template (not wrapped in pages)
   if (results?.template_type === 'product_factura') {
     const imagesHtml = renderExtractedImages(results._extracted_images);
@@ -1417,7 +2144,7 @@ function renderExtractedImages(images) {
   window._extractedImages = images;
   
   const imagesHtml = images.map((img, idx) => `
-    <div class="extracted-image-item" data-image-idx="${idx}">
+    <div class="extracted-image-item" data-image-idx="${idx}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', JSON.stringify({type:'extracted_image', idx:${idx}}));">
       <div class="extracted-image-header">
         <span class="image-info">Page ${img.page}, Image #${img.index} (${img.width}x${img.height})</span>
         <button class="btn-ocr-roi" onclick="openImageRoiModal(${idx})" title="Select region for OCR">
@@ -2297,6 +3024,27 @@ function attachCroppedImage() {
   const { lastCroppedImage, lastCroppedImages, imageIdx, currentRoi, selectedRois, lastExtractedPerZone } = roiModalState;
   const images = Array.isArray(lastCroppedImages) && lastCroppedImages.length > 0 ? lastCroppedImages : (lastCroppedImage ? [lastCroppedImage] : []);
   if (images.length === 0 || !state.currentResults) return;
+
+  // Overwrite the extracted image we are editing (same idx as ROI source image)
+  const extracted = Array.isArray(state.currentResults._extracted_images) ? state.currentResults._extracted_images : [];
+  if (typeof imageIdx === 'number' && extracted[imageIdx]) {
+    extracted[imageIdx].data_url = images[0];
+    const temp = new Image();
+    temp.onload = () => {
+      extracted[imageIdx].width = temp.width;
+      extracted[imageIdx].height = temp.height;
+      syncResultsToEditor();
+      const renderRoot = document.getElementById('template-render-root');
+      if (renderRoot) {
+        renderRoot.innerHTML = renderTemplateView('DOCUMENT', state.currentResults);
+        setTimeout(() => {
+          attachEditableListeners();
+          attachExtractedImageEditorHandlers();
+        }, 0);
+      }
+    };
+    temp.src = images[0];
+  }
   
   // Add cropped image to results
   if (!state.currentResults._roi_extractions) {
@@ -2708,6 +3456,23 @@ async function selectJob(jobId) {
   }
 }
 
+function scheduleSelectedJobRefresh(jobId, delayMs = 2000) {
+  if (!jobId) return;
+  if (state.jobPollTimer) {
+    clearTimeout(state.jobPollTimer);
+    state.jobPollTimer = null;
+  }
+  state.jobPollTimer = setTimeout(async () => {
+    if (state.selectedJobId !== jobId) return;
+    try {
+      const job = await apiGet(`/jobs/${jobId}`);
+      renderJobDetail(job);
+    } catch (e) {
+      console.error('Auto-refresh failed', e);
+    }
+  }, delayMs);
+}
+
 function renderJobDetail(job) {
   const section = qs('detail-section');
   const uploadSection = qs('upload-section');
@@ -2725,7 +3490,11 @@ function renderJobDetail(job) {
   const previewEl = qs('preview');
   
   // Store results for editing
-  state.currentResults = job.results ? JSON.parse(JSON.stringify(job.results)) : null;
+  const normalizedResults = ensureResultsObject(job.results);
+  state.currentResults = normalizedResults ? JSON.parse(JSON.stringify(normalizedResults)) : null;
+  if (state.currentResults) {
+    hydrateTargetBrandsIncDefaults(state.currentResults);
+  }
   state.currentJob = job;
   
   // Reset table counter for fresh IDs
@@ -2757,21 +3526,36 @@ function renderJobDetail(job) {
     }
   }
 
-  if (job.results) {
-    // Results are ready: show tabs and tab contents
-    if (processingPanel) processingPanel.classList.add('hidden');
-    if (tabs) tabs.classList.remove('hidden');
-    document.querySelectorAll('.tab-content').forEach((el) => el.classList.remove('hidden'));
+  const templateMode = job.mode === 'DOCUMENT' || shouldUseTemplateView(job.mode, state.currentResults);
+  const templateView = ensureTemplateViewEl();
+  const editorContainer = document.querySelector('#tab-editor .editor-container');
 
-    // Only render preview if element exists (Final Preview tab was removed)
-    if (previewEl) {
-      previewEl.innerHTML = renderResultsPreview(job.mode, job.results);
-      // Attach editable listeners after rendering
-      setTimeout(() => attachEditableListeners(), 0);
+  if (templateView && editorContainer) {
+    templateView.classList.toggle('hidden', !templateMode);
+    editorContainer.classList.toggle('hidden', templateMode);
+    templateView.style.display = templateMode ? 'block' : 'none';
+    editorContainer.style.display = templateMode ? 'none' : '';
+    if (templateMode) {
+      if (job.results) {
+        templateView.innerHTML = renderTemplateSplitView(job.mode, state.currentResults, job);
+        setTimeout(() => {
+          attachEditableListeners();
+          attachExtractedImageEditorHandlers();
+        }, 0);
+      } else {
+        templateView.innerHTML = renderTemplateSplitView(job.mode, null, job);
+      }
+    } else {
+      templateView.innerHTML = '';
     }
-  } else {
-    // Only set innerHTML if element exists
-    if (previewEl) {
+  }
+
+  // Only render preview if element exists (Final Preview tab was removed)
+  if (previewEl && !templateMode) {
+    if (job.results) {
+      previewEl.innerHTML = renderResultsPreview(job.mode, job.results);
+      setTimeout(() => attachEditableListeners(), 0);
+    } else {
       previewEl.innerHTML = `
         <div class="empty-state">
           <i class="fas fa-hourglass-half"></i>
@@ -2781,19 +3565,25 @@ function renderJobDetail(job) {
     }
   }
 
-  // Load document for PDF regions tab
-  if (typeof loadDocumentForRegions === 'function') {
-    loadDocumentForRegions(job);
+  if (!templateMode) {
+    // Load document for PDF regions tab
+    if (typeof loadDocumentForRegions === 'function') {
+      loadDocumentForRegions(job);
+    }
+
+    // Load document for Document viewer tab
+    if (typeof loadDocumentForViewer === 'function') {
+      loadDocumentForViewer(job);
+    }
+
+    // Load document for Editor tab
+    if (typeof loadDocumentForEditor === 'function') {
+      loadDocumentForEditor(job);
+    }
   }
 
-  // Load document for Document viewer tab
-  if (typeof loadDocumentForViewer === 'function') {
-    loadDocumentForViewer(job);
-  }
-
-  // Load document for Editor tab
-  if (typeof loadDocumentForEditor === 'function') {
-    loadDocumentForEditor(job);
+  if (templateMode && !job.results && (job.status === 'PENDING' || job.status === 'PROCESSING') && state.selectedJobId) {
+    scheduleSelectedJobRefresh(state.selectedJobId);
   }
 
   // Only attach oninput if editor exists (JSON tab was removed)
